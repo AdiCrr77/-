@@ -50,3 +50,5 @@ Scorecard: keep overall, Clarity, Confidence, Charisma, Warmth in order with exi
 Missing-fact clarification: vague goals receive `What specific goal had we agreed on?`; vague outcomes receive `What specific outcome did you deliver?`. Keep one question per message and stay in the manager's character.
 
 Heard: one line after Warmth with the Convex-counted fillers, long pauses and hedges from word timestamps. Keep the existing seventh source line, order, bolding and emojis. Do not show AI-estimated counts or pitch.
+
+Whole-round clarification: check all voice-note transcripts in order before choosing a missing fact. Ask each fact question at most once. If the fact remains missing after its question, show its visible gap in the separate Better version, for example [add your outcome here]. Keep one question per message, existing bolding/emojis/order, and the seven-line scorecard. Heard summarizes every accepted note in the round; gaps between recordings are not pauses.

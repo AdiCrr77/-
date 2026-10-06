@@ -6,6 +6,7 @@ import {
   finishDelivery,
   reserveRetry,
   reserveFeedback,
+  recordNote,
 } from "../convex/lib/state.js";
 import { BUSY, OPENER } from "../convex/lib/rules.js";
 import { emptyFacts, parsePracticeResult, FACT_QUESTIONS } from "../convex/lib/facts.js";
@@ -273,4 +274,54 @@ test("feedback cannot exceed the 30-call cap or use an obsolete session", async 
   ctx.tables.callLimits[0].timestamps=[];
   await prepareDelivery(ctx,meta('new-session','1'));
   assert.equal(await reserveFeedback(ctx,meta('voice')),false);
+});
+
+test("whole-round state asks each missing fact once, keeps all note counts and clears transcripts after scoring", async () => {
+  const ctx=database(); await ready(ctx);
+  const replies=[
+    {u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'',v:{c:80,k:75,w:85},n:'Hesitant but respectful delivery.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:80,k:75,w:85},n:'Clear articulation.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:80,k:75,w:85},n:'Steady voice.',r:'I request a 12% raise.'},
+  ];
+  const ids=['voice','round-2','round-3'];
+  for(let i=0;i<ids.length;i++) {
+    if(i) await prepareDelivery(ctx,meta(ids[i]));
+    const claim=await claimDelivery(ctx,meta(ids[i]));
+    const snapshot=await recordNote(ctx,{...meta(ids[i]),transcript:`Synthetic answer ${i}`,fillers:i?0:3,longPauses:i?0:1,hedges:i?0:1});
+    assert.equal(snapshot.accepted,true);
+    assert.equal(snapshot.notes.length,i+1);
+    // A duplicate recording mutation must not double count this voice note.
+    const repeated=await recordNote(ctx,{...meta(ids[i]),transcript:'duplicate',fillers:9,longPauses:9,hedges:9});
+    assert.equal(repeated.notes.length,i+1);
+    const {measureRound}=await import('../convex/lib/round.js');
+    const result=parsePracticeResult(JSON.stringify(replies[i]),claim.facts,false,measureRound(snapshot.notes),{askedFacts:snapshot.askedFacts});
+    assert.equal(result.askedFact,i===0?'deliveredOutcome':i===1?'expectations':null);
+    await finishDelivery(ctx,{...meta(ids[i]),facts:result.facts,score:result.score,messages:[result.question??'synthetic scorecard'],audioFeedback:result.audioFeedback,...(result.question?{question:result.question,askedFact:result.askedFact}:{})});
+    if(i<2) assert.equal(ctx.tables.answers.length,0);
+    else {
+      assert.equal(result.score.confidence,76);
+      assert.ok(result.score.rewrite.includes('[add your outcome here]'));
+      assert.ok(result.score.rewrite.includes('[add how your outcome compared here]'));
+    }
+  }
+  assert.deepEqual(ctx.tables.answers[0].sourceMessageIds,ids);
+  assert.deepEqual(ctx.tables.sessions[0].notes,[]);
+  assert.deepEqual(ctx.tables.sessions[0].askedFacts,['deliveredOutcome','expectations']);
+  await prepareDelivery(ctx,meta('fresh-round','1'));
+  assert.deepEqual(ctx.tables.sessions[0].askedFacts,[]);
+  assert.deepEqual(ctx.tables.sessions[0].notes,[]);
+});
+test("transcript recording and unreadable cleanup preserve earlier notes and cannot cross generations",async()=>{
+ const ctx=database(); await ready(ctx); await claimDelivery(ctx,meta('voice'));
+ await recordNote(ctx,{...meta('voice'),transcript:'Earlier synthetic answer',fillers:2,longPauses:1,hedges:0});
+ await finishDelivery(ctx,{...meta('voice'),messages:['synthetic question'],score:null,question:FACT_QUESTIONS.deliveredOutcome,askedFact:'deliveredOutcome'});
+ await prepareDelivery(ctx,meta('unreadable')); await claimDelivery(ctx,meta('unreadable'));
+ await recordNote(ctx,{...meta('unreadable'),transcript:'Synthetic unusable content',fillers:0,longPauses:0,hedges:0});
+ await finishDelivery(ctx,{...meta('unreadable'),messages:['synthetic error'],score:null,discardNote:true});
+ assert.deepEqual(ctx.tables.sessions[0].notes.map(note=>note.messageId),['voice']);
+ assert.deepEqual(ctx.tables.sessions[0].askedFacts,['deliveredOutcome']);
+ await prepareDelivery(ctx,meta('pending')); await claimDelivery(ctx,meta('pending'));
+ await prepareDelivery(ctx,meta('new-round','1'));
+ const old=await recordNote(ctx,{...meta('pending'),transcript:'stale',fillers:0,longPauses:0,hedges:0});
+ assert.equal(old.accepted,false);assert.deepEqual(ctx.tables.sessions[0].notes,[]);
 });

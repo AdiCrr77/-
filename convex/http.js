@@ -86,13 +86,8 @@ http.route({
         chunk.fill(0);
       }
       try {
-        return json({
-          messages: await ctx.runAction(internal.scoring.score, {
-            phone,
-            messageId,
-            audio: audio.buffer,
-          }),
-        });
+        const result=await ctx.runAction(internal.scoring.score,{phone,messageId,audio:audio.buffer});
+        return json(Array.isArray(result)?{messages:result}:result);
       } finally {
         audio.fill(0);
       }

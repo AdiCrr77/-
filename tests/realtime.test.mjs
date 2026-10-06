@@ -148,7 +148,7 @@ test("Realtime is required to submit a score tool and its arguments feed the exi
     r: "A synthetic raise request.",
   };
   assert.ok(session.instructions.includes("No chat message, preamble, explanation, thinking aloud"));
-  assert.deepEqual(session.tools[0].parameters.required, ["u", "p", "g", "d", "e", "v", "r"]);
+  assert.deepEqual(session.tools[0].parameters.required, ["u", "p", "g", "d", "e", "v", "n", "r"]);
   socket.event({
     type: "response.done",
     response: {
@@ -230,4 +230,22 @@ test("scoring uses minimal reasoning while retaining the 500-token cap", async (
   assert.equal(Socket.instance.sent.at(-1).response.max_output_tokens,500);
   Socket.instance.event({type:"error",error:{code:"synthetic_failure"}});
   await assert.rejects(promise,/synthetic_failure/);
+});
+
+test("feedback receives every round transcript and earlier audio observations without reusing earlier audio",async()=>{
+ const round={askedFacts:['deliveredOutcome'],notes:[{messageId:'first',transcript:'I request 12 percent; resolved 40 tickets.',audioFeedback:'Hesitant pacing; respectful tone.'},{messageId:'second',transcript:'Our target was 30 tickets.'}]};
+ const context={round};
+ const promise=scoreAudio(Socket,'synthetic',new Uint8Array(4800),55000,context);
+ Socket.instance.event({type:'session.created'});
+ const session=Socket.instance.sent[0].session;
+ assert.ok(session.instructions.includes('Before extracting facts, reread ALL supplied round-note transcripts'));
+ assert.ok(session.instructions.includes(round.notes[0].transcript));
+ assert.ok(session.instructions.includes(round.notes[1].transcript));
+ assert.ok(session.instructions.includes(round.notes[0].audioFeedback));
+ assert.ok(session.instructions.includes('Earlier audio has been deleted'));
+ assert.ok(session.instructions.includes('[add your outcome here]'));
+ assert.equal(session.max_output_tokens,500);
+ assert.deepEqual(session.tools[0].parameters.properties.n.maxLength,400);
+ Socket.instance.event({type:'error',error:{code:'synthetic_failure'}});
+ await assert.rejects(promise,/synthetic_failure/);
 });

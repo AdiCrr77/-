@@ -111,3 +111,13 @@ test("actual endpoint forwards original PCM without storing it and clears its bu
       : (process.env.PRACTICE_BRIDGE_TOKEN = before);
   }
 });
+
+test("score endpoint returns the local diagnostic separately from unchanged WhatsApp messages",async()=>{
+ const before=process.env.PRACTICE_BRIDGE_TOKEN;process.env.PRACTICE_BRIDGE_TOKEN=token;
+ const scoringDiagnostic='SCORING DIAGNOSTIC\n{"fullTranscript":"Synthetic words","words":[]}\nEND SCORING DIAGNOSTIC';
+ try {
+ const response=await routes.get('/practice/score')({runAction:async()=>({messages:['synthetic score','synthetic rewrite'],scoringDiagnostic})},request('/practice/score',Buffer.alloc(4800),{'Content-Type':'application/octet-stream','X-Practice-Phone':'15555550123','X-Practice-Message':'FAKE-DIAGNOSTIC'}));
+ assert.deepEqual(await response.json(),{messages:['synthetic score','synthetic rewrite'],scoringDiagnostic});
+ assert.equal(response.headers.get('Cache-Control'),'no-store');
+ } finally {before===undefined?delete process.env.PRACTICE_BRIDGE_TOKEN:process.env.PRACTICE_BRIDGE_TOKEN=before;}
+});

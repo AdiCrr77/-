@@ -33,3 +33,26 @@ test('missing or invalid AI feedback scores still reject despite successful Conf
  await assert.rejects(evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v}),reserveRetry:async()=>true,report:()=>{}}),/invalid_scores/);
  }
 });
+
+test('round retry keeps all transcripts and counts once across feedback attempts',async()=>{
+ const notes=[{messageId:'earlier',transcript:'Earlier complete synthetic ask.',fillers:3,longPauses:1,hedges:1,audioFeedback:'Hesitant delivery.'}];
+ let records=0,calls=0;
+ const result=await evaluateMeasuredPractice({
+ transcribe:async()=>({...measurement,transcript:'Latest clarification.'}),
+ recordTranscript:async(note)=>{records++;notes.push({messageId:'latest',transcript:note.transcript,fillers:note.fillers,longPauses:note.longPauses,hedges:note.hedges});return{accepted:true,notes,askedFacts:['deliveredOutcome']};},
+ reserveFeedback:async()=>true,reserveRetry:async()=>true,report:()=>{},
+ evaluate:async(round)=>{
+ assert.equal(round.notes.length,2);
+ assert.equal(round.notes[0].audioFeedback,'Hesitant delivery.');
+ assert.equal(round.askedFacts[0],'deliveredOutcome');
+ calls++;return calls===1?'bad JSON':JSON.stringify({...output,d:'',n:'Clear current-note articulation.'});
+ },
+ });
+ assert.equal(records,1);assert.equal(calls,2);
+ assert.equal(result.score.confidence,56);
+ assert.ok(result.score.rewrite.includes('[add your outcome here]'));
+ assert.equal(result.heard,'Heard: 5 fillers, 2 long pauses, 2 hedges');
+});
+test('obsolete round prevents feedback after a successful transcription',async()=>{
+ await assert.rejects(evaluateMeasuredPractice({transcribe:async()=>({...measurement,transcript:'Synthetic stale note'}),recordTranscript:async()=>({accepted:false,notes:[],askedFacts:[]}),reserveFeedback:async()=>assert.fail('no extra call'),evaluate:async()=>assert.fail('no feedback call'),reserveRetry:async()=>false}),/stale_session/);
+});

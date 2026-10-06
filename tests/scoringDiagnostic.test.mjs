@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {measureWords} from '../convex/lib/confidence.js';
+import {transcribeAudio} from '../convex/lib/transcription.js';
+import {formatScoringDiagnostic} from '../convex/lib/scoringDiagnostic.js';
+const word=(word,start,end)=>({word,start,end});
+test('diagnostic instrumentation records the exact counted fillers, pauses and hedge phrases without changing scores',()=>{
+ const words=[word('Umm,',3,3.2),word('',3.2,3.3),word('I',5.5,5.7),word('think',5.7,6),word('maybe',6.3,6.6),word('uh',6.8,7)];
+ let diagnostic;
+ const instrumented=measureWords(words,12,{onDiagnostic:value=>{diagnostic=value;}});
+ assert.deepEqual(instrumented,measureWords(words,12));
+ assert.equal(diagnostic.fillers.length,instrumented.fillers);
+ assert.equal(diagnostic.longPauses.length,instrumented.longPauses);
+ assert.equal(diagnostic.hedges.length,instrumented.hedges);
+ assert.deepEqual(diagnostic.fillers.map(item=>item.normalized),['umm','uh']);
+ assert.deepEqual(diagnostic.hedges.map(item=>item.phrase),['i think','maybe']);
+ assert.deepEqual(diagnostic.longPauses,[{kind:'word_gap',fromWordIndex:0,toWordIndex:2,start:3.2,end:5.5,seconds:5.5-3.2}]);
+ assert.equal(diagnostic.biggestGaps[0].seconds,5.5-3.2);
+ assert.equal(diagnostic.biggestGaps.length,4);
+ assert.deepEqual(diagnostic.words,words);
+});
+test('five biggest gaps remain ranked and long word spans and consecutive gaps are diagnosed',()=>{
+ const words=[word('a',0,5),word('b',1,1.1),word('c',4,4.1),word('d',5.5,5.6),word('e',6,6.1),word('f',7,7.1),word('g',8,8.1)];
+ let diagnostic;
+ const result=measureWords(words,10,{onDiagnostic:value=>{diagnostic=value;}});
+ assert.equal(result.longPauses,3);
+ assert.equal(diagnostic.longPauses.length,3);
+ assert.deepEqual(diagnostic.longPauses.map(item=>item.kind),['word_duration','word_gap','word_gap']);
+ assert.equal(diagnostic.biggestGaps.length,5);
+ assert.equal(diagnostic.biggestGaps[0].seconds,4-1.1);
+});
+test('full Whisper text, raw word times and matched lists return locally without leaking keys or audio fields',async()=>{
+ const words=[word('Um',3,3.2),word('hello',3.4,3.7)];
+ const result=await transcribeAudio('synthetic-secret',new Uint8Array(48000*8),async()=>({ok:true,json:async()=>({text:'Um, hello. synthetic-secret sk-synthetic-key',words,audio:'PRIVATE_AUDIO',headers:'PRIVATE_HEADERS'})}));
+ const block=formatScoringDiagnostic(result.scoringDiagnostic,['synthetic-secret']);
+ assert.ok(block.startsWith('SCORING DIAGNOSTIC\n'));
+ assert.ok(block.endsWith('\nEND SCORING DIAGNOSTIC'));
+ const parsed=JSON.parse(block.slice('SCORING DIAGNOSTIC\n'.length,-'\nEND SCORING DIAGNOSTIC'.length));
+ assert.deepEqual(parsed.words,words);
+ assert.equal(parsed.fullTranscript,'Um, hello. [REDACTED KEY] [REDACTED KEY]');
+ assert.equal(parsed.fillers.length,1);
+ assert.equal(result.transcript,'Um hello');
+ assert.equal(result.confidence,96);
+ assert.ok(!block.includes('PRIVATE_AUDIO'));assert.ok(!block.includes('PRIVATE_HEADERS'));
+});

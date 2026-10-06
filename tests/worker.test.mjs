@@ -97,3 +97,21 @@ test("duplicate voice event is discarded and its temporary file deleted without 
     await rm(cacheDir, { recursive: true, force: true });
   }
 });
+
+test('successful voice diagnostics print locally once and never become WhatsApp messages',async()=>{
+ const cacheDir=await mkdtemp(path.join(tmpdir(),'synthetic-local-diagnostic-'));
+ const file=path.join(cacheDir,'fake.ogg');await writeFile(file,'synthetic');
+ const sends=[],printed=[];
+ const scoringDiagnostic='SCORING DIAGNOSTIC\n{"fullTranscript":"Um, synthetic answer.","words":[{"word":"Um","start":3,"end":3.2}],"biggestGaps":[],"fillers":[{"word":"Um"}],"longPauses":[],"hedges":[]}\nEND SCORING DIAGNOSTIC';
+ try {
+ const worker=createWorker({site:'https://synthetic.convex.site',token:'synthetic',bridge:'http://127.0.0.1:3001',cacheDir,convert:async()=>Buffer.alloc(4800),logDiagnostic:block=>printed.push(block),fetchImpl:async(url,options)=>{
+ if(url.endsWith('/send')){sends.push(JSON.parse(options.body).message);return{ok:true,json:async()=>({success:true})};}
+ if(url.endsWith('/prepare'))return{ok:true,json:async()=>({ready:true,messages:[]})};
+ return{ok:true,json:async()=>({messages:['synthetic score','synthetic rewrite'],scoringDiagnostic})};
+ }});
+ await worker({senderId:'15555550123@s.whatsapp.net',chatId:'15555550123@s.whatsapp.net',messageId:'FAKE-DIAGNOSTIC',mediaType:'ptt',mediaUrls:[file],isGroup:false});
+ assert.deepEqual(printed,[scoringDiagnostic]);
+ assert.deepEqual(sends,['Listening to your answer...','synthetic score','synthetic rewrite']);
+ await assert.rejects(access(file));
+ } finally {await rm(cacheDir,{recursive:true,force:true});}
+});

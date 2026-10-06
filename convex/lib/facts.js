@@ -1,3 +1,4 @@
+import { ensureRewriteGaps } from "./round.js";
 import { usableFact } from "./factQuality.js";
 import { expandResult } from "./resultWire.js";
 import { scoreObservations } from "./rubric.js";
@@ -16,7 +17,7 @@ export const factsValidator = v.object(Object.fromEntries(
 export const emptyFacts = () => Object.fromEntries(Object.keys(FACT_QUESTIONS).map((name) => [name, ""]));
 
 // The model extracts facts; Convex decides whether enough context exists to score.
-export function parsePracticeResult(text, prior = emptyFacts(), requireObservations = false, measurement) {
+export function parsePracticeResult(text, prior = emptyFacts(), requireObservations = false, measurement, round) {
   let result;
   try { result = JSON.parse(text); } catch { return parseScore(text); }
   result = expandResult(result);
@@ -31,7 +32,14 @@ export function parsePracticeResult(text, prior = emptyFacts(), requireObservati
     if (value != null && (typeof value !== "string" || value.length > 600)) throw new Error("invalid_facts");
     facts[name] = usableFact(name, value ?? "") || usableFact(name, prior[name] ?? "");
   }
-  const missing = Object.keys(FACT_QUESTIONS).find((name) => !facts[name]);
+  const missingFacts=Object.keys(FACT_QUESTIONS).filter(name=>!facts[name]);
+  const missing=missingFacts.find(name=>!round?.askedFacts?.includes(name));
+  if(round && !missing) result.rewrite=ensureRewriteGaps(result.rewrite,missingFacts);
+  let audioFeedback;
+  if(round) {
+    if(typeof result.audioFeedback !== 'string' || !result.audioFeedback.trim() || result.audioFeedback.length>400) throw new Error('invalid_response');
+    audioFeedback=result.audioFeedback.trim();
+  }
   text = JSON.stringify(result);
   let heard;
   if (!missing && measurement) {
@@ -45,5 +53,5 @@ export function parsePracticeResult(text, prior = emptyFacts(), requireObservati
     text = JSON.stringify(result);
     heard = evaluated.heard;
   }
-  return { ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
+  return { ...(round ? {askedFact:missing ?? null, audioFeedback} : {}), ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
 }

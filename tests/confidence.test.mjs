@@ -12,9 +12,11 @@ test('firm versus hesitant timed words give a measured 20-point gap and matching
  assert.ok(firm.confidence-hesitant.confidence>=20);
  assert.equal(hesitant.heard,'Heard: 2 fillers, 1 long pause, 2 hedges');
 });
-test('pause threshold is strictly over two seconds; leading and trailing silence are excluded',()=>{
- assert.equal(measureWords([word('one',5,6),word('two',8,9)],20).longPauses,0);
- assert.equal(measureWords([word('one',5,6),word('two',8.001,9)],20).longPauses,1);
+test('pause thresholds are strictly over 1.2 seconds between words or 1.0 second within a word',()=>{
+ assert.equal(measureWords([word('one',0,0),word('two',1.2,1.7)],20).longPauses,0);
+ assert.equal(measureWords([word('one',0,0),word('two',1.201,1.7)],20).longPauses,1);
+ assert.equal(measureWords([word('one',0,1)],20).longPauses,0);
+ assert.equal(measureWords([word('one',0,1.001)],20).longPauses,1);
 });
 test('fillers normalize spelling and punctuation; hedge phrases count once, across word entries',()=>{
  const values=['Um','ummm','UH!','er','umbrella','think','maybe','I','think','sort','of','kind','of','perhaps','possibly'];
@@ -78,4 +80,40 @@ test('skipped entries add no pauses; pauses remain gaps between actual words',()
 });
 test('all-empty word entries reject with the remaining-words diagnostic',()=>{
  assert.throws(()=>measureWords([word('',0,.1),word(' \t',.1,.2)],1),error=>error.message==='invalid_transcription'&&error.transcriptionRule==='words_nonempty');
+});
+
+test('normal-speed words with leading and trailing silence produce zero long pauses',()=>{
+ const result=measureWords([word('Hello',3,3.2),word('there',3.3,3.6),word('friend',3.8,4.1)],10);
+ assert.equal(result.longPauses,0);
+ assert.equal(result.confidence,100);
+});
+test('a word spanning the reported uh interval is detected as one long pause',()=>{
+ let diagnostic;
+ const result=measureWords([word('uh',5.58,7.32)],10,{onDiagnostic:value=>{diagnostic=value;}});
+ assert.equal(result.longPauses,1);
+ assert.equal(result.fillers,1);
+ assert.equal(result.confidence,88);
+ assert.equal(diagnostic.longPauses[0].kind,'word_duration');
+ assert.equal(diagnostic.longPauses[0].seconds,7.32-5.58);
+});
+test('a gap over 1.2 seconds and a stretched word count separately',()=>{
+ const result=measureWords([word('hello',3,3.2),word('uh',4.78,6.52),word('there',6.6,6.9)],10);
+ assert.equal(result.longPauses,2);
+ assert.equal(result.fillers,1);
+ assert.equal(result.confidence,80);
+});
+
+test('exact supplied 11.73-second diagnostic timings produce two long pauses',()=>{
+ const words=[{"word":"Yes","start":0.80,"end":1.24},{"word":"so","start":1.28,"end":1.46},{"word":"the","start":1.46,"end":1.92},{"word":"outcome","start":1.92,"end":2.44},{"word":"um","start":4.02,"end":4.52},{"word":"yes","start":4.84,"end":5.58},{"word":"uh","start":5.58,"end":7.32},{"word":"we","start":7.32,"end":7.70},{"word":"did","start":7.70,"end":7.98},{"word":"not","start":7.98,"end":8.14},{"word":"exceed","start":8.14,"end":8.56},{"word":"the","start":8.56,"end":8.88},{"word":"outcome","start":8.88,"end":9.00},{"word":"We","start":9.18,"end":9.18},{"word":"did","start":9.18,"end":9.28},{"word":"not","start":9.28,"end":9.50},{"word":"meet","start":9.50,"end":9.60},{"word":"the","start":9.60,"end":9.92},{"word":"outcome","start":9.92,"end":9.92},{"word":"but","start":10.08,"end":10.16},{"word":"we","start":10.16,"end":10.34},{"word":"are","start":10.34,"end":10.46},{"word":"on","start":10.46,"end":10.60},{"word":"the","start":10.60,"end":10.70},{"word":"right","start":10.70,"end":10.94},{"word":"track","start":10.94,"end":11.16}];
+ let diagnostic;
+ const result=measureWords(words,11.73,{onDiagnostic:value=>{diagnostic=value;}});
+ assert.equal(result.longPauses,2);
+ assert.equal(result.fillers,2);
+ assert.equal(result.hedges,0);
+ assert.equal(result.confidence,76);
+ assert.equal(result.heard,'Heard: 2 fillers, 2 long pauses, 0 hedges');
+ assert.deepEqual(diagnostic.longPauses,[
+   {kind:'word_gap',fromWordIndex:3,toWordIndex:4,start:2.44,end:4.02,seconds:4.02-2.44},
+   {kind:'word_duration',wordIndex:6,word:'uh',start:5.58,end:7.32,seconds:7.32-5.58},
+ ]);
 });

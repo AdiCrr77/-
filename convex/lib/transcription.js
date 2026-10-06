@@ -32,7 +32,11 @@ export async function transcribeAudio(key, bytes, fetchImpl=fetch, write=line=>c
     }
     let result; try {result=await response.json();} catch {reject(null, transcriptionRejection('response_json'));}
     if (Array.isArray(result?.words) && !result.words.length) reject(result.words, transcriptionRejection('words_nonempty', -1, 'unreadable'));
-    try { return measureWords(result?.words,duration); }
+    try {
+      let scoringDiagnostic;
+      const measurement=measureWords(result?.words,duration,{onDiagnostic:value=>{scoringDiagnostic={fullTranscript:typeof result.text==='string'?result.text:null,duration,...value};}});
+      return {...measurement, transcript:result.words.filter(item=>item.word.trim()).map(item=>item.word.trim()).join(' '),scoringDiagnostic};
+    }
     catch (error) { reject(result?.words, error); }
   } finally { wav.fill(0); body?.delete('file'); }
 }

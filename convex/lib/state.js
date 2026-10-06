@@ -22,7 +22,7 @@ export async function prepareDelivery(ctx, { phone, messageId, text }) {
   let ready = false;
   if (selection) {
     if (session)
-      await ctx.db.patch(session._id, { generation, awaitingAnswer: true, facts: emptyFacts(), currentQuestion: OPENER });
+      await ctx.db.patch(session._id, { generation, awaitingAnswer: true, facts: emptyFacts(), notes: [], askedFacts: [], currentQuestion: OPENER });
     else
       await ctx.db.insert("sessions", {
         phone,
@@ -31,6 +31,7 @@ export async function prepareDelivery(ctx, { phone, messageId, text }) {
         awaitingAnswer: true,
         facts: emptyFacts(),
         currentQuestion: OPENER,
+        notes: [], askedFacts: [],
       });
     messages = [OPENER];
   } else if (text === "" && session?.awaitingAnswer) {
@@ -83,12 +84,12 @@ export async function claimDelivery(ctx, { phone, messageId }) {
   await ctx.db.patch(delivery._id, { status: "processing" });
   // One scored answer per selection, including concurrent different delivery IDs.
   await ctx.db.patch(session._id, { awaitingAnswer: false });
-  return { claimed: true, messages: [], facts: session.facts ?? emptyFacts(), currentQuestion: session.currentQuestion ?? OPENER };
+  return { claimed: true, messages: [], facts: session.facts ?? emptyFacts(), currentQuestion: session.currentQuestion ?? OPENER, askedFacts: session.askedFacts ?? [] };
 }
 
 export async function finishDelivery(
   ctx,
-  { phone, messageId, messages, score, facts, question },
+  { phone, messageId, messages, score, facts, question, askedFact, audioFeedback, discardNote },
 ) {
   const delivery = await ctx.db
     .query("deliveries")
@@ -102,15 +103,22 @@ export async function finishDelivery(
     await ctx.db.patch(delivery._id, { status: "finished", messages: [] });
     return null;
   }
-  if (facts) await ctx.db.patch(current._id, { facts, ...(question ? { currentQuestion: question } : {}) });
-  if (score)
+  let notes=current.notes ?? [];
+  if(discardNote) notes=notes.filter(note=>note.messageId!==messageId);
+  else if(audioFeedback) notes=notes.map(note=>note.messageId===messageId?{...note,audioFeedback}:note);
+  const askedFacts=current.askedFacts ?? [];
+  if(askedFact && !askedFacts.includes(askedFact)) askedFacts.push(askedFact);
+  await ctx.db.patch(current._id, {notes,askedFacts,...(facts?{facts}:{}),...(question?{currentQuestion:question}:{})});
+  if (score) {
     await ctx.db.insert("answers", {
       phone,
       generation: delivery.generation,
       situation: "raise",
       ...score,
+      ...(notes.length?{sourceMessageIds:notes.map(note=>note.messageId)}:{}),
     });
-  else {
+    await ctx.db.patch(current._id, {notes:[]});
+  } else {
     const session = await ctx.db
       .query("sessions")
       .withIndex("by_phone", (q) => q.eq("phone", phone))
@@ -138,3 +146,16 @@ async function reserveAdditional(ctx, { phone, messageId }, field) {
 
 export const reserveRetry = (ctx, identity) => reserveAdditional(ctx, identity, 'retryReserved');
 export const reserveFeedback = (ctx, identity) => reserveAdditional(ctx, identity, 'feedbackReserved');
+
+// Persist a successful transcription before feedback, so feedback failures do not
+// discard speech already supplied. Stale generations cannot append to a new round.
+export async function recordNote(ctx, {phone,messageId,transcript,fillers,longPauses,hedges}) {
+  const delivery=await ctx.db.query('deliveries').withIndex('by_phone_message',q=>q.eq('phone',phone).eq('messageId',messageId)).unique();
+  const session=await ctx.db.query('sessions').withIndex('by_phone',q=>q.eq('phone',phone)).unique();
+  if(!delivery || delivery.status!=='processing' || !session || session.generation!==delivery.generation) return {accepted:false,notes:[],askedFacts:[]};
+  if(typeof transcript!=='string'||!transcript.trim()||[fillers,longPauses,hedges].some(n=>!Number.isSafeInteger(n)||n<0)) throw new Error('invalid_transcription');
+  const notes=session.notes ?? [];
+  if(!notes.some(note=>note.messageId===messageId)) notes.push({messageId,transcript,fillers,longPauses,hedges});
+  await ctx.db.patch(session._id,{notes});
+  return {accepted:true,notes,askedFacts:session.askedFacts ?? []};
+}

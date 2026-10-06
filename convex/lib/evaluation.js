@@ -1,3 +1,4 @@
+import { measureRound } from "./round.js";
 import { parsePracticeResult } from "./facts.js";
 import { reportDiagnostic } from "./diagnostics.js";
 
@@ -7,7 +8,7 @@ const RETRYABLE = new Set([
 ]);
 
 // Retry only malformed provider output, once, after an atomic global quota reservation.
-export async function evaluatePractice({ evaluate, reserveRetry, facts, report = reportDiagnostic, reportRejected = () => {}, requireObservations = false, measurement }) {
+export async function evaluatePractice({ evaluate, reserveRetry, facts, report = reportDiagnostic, reportRejected = () => {}, requireObservations = false, measurement, round }) {
   const attempt = async () => {
     let text;
     try { text = await evaluate(); }
@@ -15,7 +16,7 @@ export async function evaluatePractice({ evaluate, reserveRetry, facts, report =
       if (RETRYABLE.has(error.message) && typeof error.rejectedResponseText === "string") reportRejected(error.rejectedResponseText);
       throw error;
     }
-    try { return parsePracticeResult(text, facts, requireObservations, measurement); }
+    try { return parsePracticeResult(text, facts, requireObservations, measurement, round); }
     catch (error) {
       if (RETRYABLE.has(error.message)) reportRejected(text);
       throw error;
@@ -33,8 +34,18 @@ export async function evaluatePractice({ evaluate, reserveRetry, facts, report =
 
 // The claim reserves the transcription call; every subsequent provider call
 // has its own atomic reservation. Reuse measured counts on feedback retry.
-export async function evaluateMeasuredPractice({ transcribe, reserveFeedback, ...options }) {
-  const measurement = await transcribe();
+export async function evaluateMeasuredPractice({ transcribe, reserveFeedback, recordTranscript, ...options }) {
+  const note=await transcribe();
+  let snapshot;
+  if(recordTranscript) {
+    snapshot=await recordTranscript(note);
+    if(!snapshot.accepted) throw new Error('stale_session');
+  }
+  const measurement=snapshot?measureRound(snapshot.notes):note;
   if (!await reserveFeedback()) throw new Error('call_limit_reached');
-  return evaluatePractice({ ...options, measurement, requireObservations: false });
+  return evaluatePractice({ ...options,
+    evaluate:()=>options.evaluate(snapshot?{notes:snapshot.notes,askedFacts:snapshot.askedFacts}:undefined),
+    round:snapshot?{askedFacts:snapshot.askedFacts}:undefined,
+    measurement, requireObservations:false,
+  });
 }

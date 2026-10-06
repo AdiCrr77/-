@@ -1,3 +1,4 @@
+import { roundNoteValidator, factNameValidator } from "./lib/round.js";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { factsValidator } from "./lib/facts.js";
@@ -10,6 +11,8 @@ export default defineSchema({
     awaitingAnswer: v.boolean(),
     facts: v.optional(factsValidator),
     currentQuestion: v.optional(v.string()),
+    notes: v.optional(v.array(roundNoteValidator)),
+    askedFacts: v.optional(v.array(factNameValidator)),
   }).index("by_phone", ["phone"]),
   deliveries: defineTable({
     phone: v.string(),
@@ -35,6 +38,7 @@ export default defineSchema({
     warmth: v.number(),
     overall: v.number(),
     rewrite: v.string(),
+    sourceMessageIds: v.optional(v.array(v.string())),
   }).index("by_phone", ["phone"]),
   // One global row: keeping only 30 timestamps bounds both storage and reads.
   callLimits: defineTable({

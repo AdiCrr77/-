@@ -17,7 +17,7 @@ export function expandResult(result) {
     return {
       unreadable: result.u,
       ...Object.fromEntries(Object.entries(FACT_WIRE).map(([name, key]) => [name, result[key]])),
-      clarity: result.v.c, charisma: result.v.k, warmth: result.v.w, rewrite: result.r,
+      clarity: result.v.c, charisma: result.v.k, warmth: result.v.w, rewrite: result.r, ...(result.n !== undefined ? {audioFeedback:result.n} : {}),
     };
   }
   if (!result.o || typeof result.o !== "object" || Array.isArray(result.o)) {

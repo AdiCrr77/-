@@ -94,6 +94,7 @@ export function createWorker({
   ffmpeg = "ffmpeg",
   fetchImpl = fetch,
   convert = convertAudio,
+  logDiagnostic = block => console.log(block),
 }) {
   const request = async (url, options = {}) => {
     const response = await fetchImpl(url, {
@@ -175,6 +176,10 @@ export function createWorker({
           : response.ok
             ? await response.json()
             : { messages: [BUSY] };
+      if(typeof result.scoringDiagnostic==='string') {
+        // Local diagnostic output is independent of WhatsApp message delivery.
+        try {logDiagnostic(result.scoringDiagnostic);} catch {console.error('Scoring diagnostic could not be printed.');}
+      }
       await send(event.chatId, result.messages);
     } catch {
       // Never log real events, audio, phone numbers, answers or credentials.

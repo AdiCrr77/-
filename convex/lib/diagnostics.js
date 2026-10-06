@@ -2,6 +2,7 @@ import { MAX_PCM_BYTES } from "./rules.js";
 
 const SAFE_CODES = new Set([
   "missing_openai_key",
+  "stale_session",
   "invalid_transcription",
   "transcription_failed",
   "call_limit_reached",
