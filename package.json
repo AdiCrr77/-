@@ -1,0 +1,20 @@
+{
+  "name": "build-sprint-app",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test --experimental-test-isolation=none tests/*.test.mjs",
+    "practice:setup": "node scripts/setup-practice.mjs",
+    "practice:start": "node scripts/start-practice.mjs",
+    "deploy": "convex deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "convex": "^1.46.0",
+    "ws": "^8.18.3"
+  }
+}

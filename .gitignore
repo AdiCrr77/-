@@ -1,0 +1,9 @@
+
+.env.local
+.npm-cache/
+node_modules/
+.env*
+!.env.example
+*.log
+voice-notes/
+whatsapp-session/
