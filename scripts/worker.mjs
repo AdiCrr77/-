@@ -86,6 +86,33 @@ export function convertAudio(ffmpeg, filePath) {
   });
 }
 
+// Never print arbitrary bridge error strings: messages can contain signed media
+// URLs or credentials. Keep only known names/codes, numeric statuses and fixed notes.
+function missingAudioDiagnostic(event) {
+  const names = new Set(['Error', 'TypeError', 'FetchError', 'AbortError', 'TimeoutError', 'AggregateError', 'HTTPError', 'AxiosError', 'Boom']);
+  const codes = new Set(['ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE', 'ABORT_ERR', 'ERR_NETWORK', 'ERR_CANCELED', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET']);
+  const project = (error, depth = 0) => {
+    if (!error || depth > 3) return undefined;
+    const value = {};
+    if (names.has(error.name)) value.name = error.name;
+    if (codes.has(error.code)) value.code = error.code;
+    const status = error.status ?? error.statusCode ?? error.output?.statusCode ?? error.response?.status;
+    if (Number.isInteger(status) && status >= 100 && status <= 599) value.status = status;
+    if (typeof error.message === 'string' && /\bfetch failed\b/i.test(error.message)) value.message = 'fetch failed';
+    const cause = project(error.cause, depth + 1);
+    if (cause) value.cause = cause;
+    return Object.keys(value).length ? value : undefined;
+  };
+  const supplied = event.audioDownloadError ?? event.downloadError ?? event.mediaError ?? event.error;
+  const error = project(supplied);
+  const note = typeof event.body === 'string' && /\[audio could not be downloaded\]/.test(event.body)
+    ? '[audio could not be downloaded]' : undefined;
+  return `practice_scoring_error code=audio_download_missing bridge_detail=${JSON.stringify({
+    ...(note ? {note} : {}), ...(error ? {error} : {}),
+    ...(!note && !error ? {note:'Bridge supplied no error detail'} : {}),
+  })}`;
+}
+
 export function createWorker({
   site,
   token,
@@ -155,8 +182,11 @@ export function createWorker({
           bytes = Buffer.alloc(0);
         }
       } else {
-        reportDiagnostic(new Error("audio_download_missing"));
-        bytes = Buffer.alloc(0);
+        try { logDiagnostic(missingAudioDiagnostic(event)); } catch {
+          console.error('practice_scoring_error code=audio_download_missing');
+        }
+        await send(event.chatId, ["I couldn't get that voice note, please send it again."]);
+        return;
       }
       const response = await fetchImpl(`${site}/practice/score`, {
         method: "POST",

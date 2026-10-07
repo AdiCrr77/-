@@ -8,7 +8,10 @@
  * @module
  */
 
+import type * as clarityAudit from "../clarityAudit.js";
+import type * as clarityQuota from "../clarityQuota.js";
 import type * as http from "../http.js";
+import type * as lib_clarity from "../lib/clarity.js";
 import type * as lib_confidence from "../lib/confidence.js";
 import type * as lib_diagnostics from "../lib/diagnostics.js";
 import type * as lib_evaluation from "../lib/evaluation.js";
@@ -33,7 +36,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  clarityAudit: typeof clarityAudit;
+  clarityQuota: typeof clarityQuota;
   http: typeof http;
+  "lib/clarity": typeof lib_clarity;
   "lib/confidence": typeof lib_confidence;
   "lib/diagnostics": typeof lib_diagnostics;
   "lib/evaluation": typeof lib_evaluation;

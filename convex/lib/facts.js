@@ -17,12 +17,14 @@ export const factsValidator = v.object(Object.fromEntries(
 export const emptyFacts = () => Object.fromEntries(Object.keys(FACT_QUESTIONS).map((name) => [name, ""]));
 
 // The model extracts facts; Convex decides whether enough context exists to score.
-export function parsePracticeResult(text, prior = emptyFacts(), requireObservations = false, measurement, round) {
+export function parsePracticeResult(text, prior = emptyFacts(), requireObservations = false, measurement, round, clarityTranscripts) {
   let result;
   try { result = JSON.parse(text); } catch { return parseScore(text); }
-  result = expandResult(result);
+  result = expandResult(result, clarityTranscripts ?? round?.notes?.map(note=>note.transcript) ?? (typeof measurement?.transcript === 'string' ? [measurement.transcript] : []));
   if (result?.unreadable) throw new Error("unreadable");
   if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("invalid_facts");
+  const clarityReason = result.clarityReason;
+  if (clarityReason !== undefined && (typeof clarityReason !== 'string' || !clarityReason.trim() || (!result.clarityChecks && clarityReason.length > 700))) throw new Error('invalid_response');
   // Non-strict function calling may omit unknown fields. Missing never means invented.
   const extracted = result.facts ?? result;
   if (typeof extracted !== "object" || Array.isArray(extracted)) throw new Error("invalid_facts");
@@ -53,5 +55,5 @@ export function parsePracticeResult(text, prior = emptyFacts(), requireObservati
     text = JSON.stringify(result);
     heard = evaluated.heard;
   }
-  return { ...(round ? {askedFact:missing ?? null, audioFeedback} : {}), ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
+  return { ...(result.clarityChecks ? {clarityChecks:result.clarityChecks} : {}), ...(clarityReason !== undefined ? {clarityReason:clarityReason.trim()} : {}), ...(round ? {askedFact:missing ?? null, audioFeedback} : {}), ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
 }

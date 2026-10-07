@@ -55,10 +55,16 @@ export const score = internalAction({
       let audioFeedback;
       let discardNote=false;
       let scoringDiagnostic;
+      let resultClarityReason;
+      let clarityChecks;
+      let transcriptionDiagnostic;
+      const rewriteRejections=[];
+      const feedbackScoreRejections=[];
       try {
         const result = await evaluateMeasuredPractice({
           transcribe: async () => {
             const measured=await transcribeAudio(process.env.OPENAI_API_KEY,bytes);
+            transcriptionDiagnostic=measured.scoringDiagnostic;
             scoringDiagnostic=formatScoringDiagnostic(measured.scoringDiagnostic,[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
             return measured;
           },
@@ -66,9 +72,14 @@ export const score = internalAction({
           reserveFeedback: () => ctx.runMutation(internal.practice.reserveFeedback, identity),
           evaluate: (round) => scoreAudio(WebSocket, process.env.OPENAI_API_KEY, bytes, 30000, { facts: claim.facts, currentQuestion: claim.currentQuestion, round }),
           reserveRetry: () => ctx.runMutation(internal.practice.reserveRetry, identity),
+          onFeedbackScoresRejected: scores => {feedbackScoreRejections.push(scores);},
+          onRewriteRejected: reason => { rewriteRejections.push(reason); },
           facts: claim.facts,
           reportRejected: (text) => reportRejectedResponse(text, [process.env.OPENAI_API_KEY, process.env.PRACTICE_BRIDGE_TOKEN]),
         });
+        resultClarityReason=result.clarityReason;
+        clarityChecks=result.clarityChecks;
+        if (result.clarityReason !== undefined) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,clarityChecks,r:result.clarityReason},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
         score = result.score;
         facts = result.facts;
         question = result.question;
@@ -81,6 +92,7 @@ export const score = internalAction({
         discardNote=error.message==='unreadable';
         messages = [providerMessage(error.message)];
       }
+      if (transcriptionDiagnostic && (rewriteRejections.length || feedbackScoreRejections.length)) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,clarityChecks,...(resultClarityReason !== undefined ? {r:resultClarityReason} : {}),rewriteRejections,feedbackScoreRejections},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
       await ctx.runMutation(internal.practice.finish, {
         ...identity,
         messages,

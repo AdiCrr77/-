@@ -33,6 +33,47 @@ export function reserveCall(timestamps, now) {
   const active = timestamps.filter((t) => t > now - HOUR);
   return active.length >= 30 ? null : [...active, now];
 }
+export function validateRewrite(rewrite) {
+  let reason;
+  if (typeof rewrite !== "string") reason = "missing";
+  else if (!rewrite.trim()) reason = "empty";
+  else if (rewrite.length > 2000) reason = "length";
+  else if (/=|\b(?:payRequest|agreedGoals|deliveredOutcome|expectations)\b/iu.test(rewrite)) reason = "fields";
+  else if (/[\p{Extended_Pictographic}*]/u.test(rewrite)) reason = "format";
+  else if (rewrite.trim().split(/\s+/u).length >= 60) reason = "word_limit";
+  else if (/i wanted to take a moment|\bleverag\w*|\balign\w*/iu.test(rewrite)) reason = "corporate_phrase";
+  if (!reason) {
+    // A decimal point is part of the amount, not a sentence boundary.
+    const firstSentence = rewrite.trim().match(/^[\s\S]*?(?:[?!。！？]|\.(?!\d)|$)/u)[0];
+    if (/[?？]/u.test(firstSentence) || /^(?:["“'‘]\s*)?(?:could|can|would|will|do|does|did|is|are|should|may|might)\b/iu.test(firstSentence)) reason = "opening_question";
+    else if (/\b(?:could\s+we|can\s+we|would\s+it\s+be\s+possible|i\s+was\s+wondering|revisit|maybe|just|i\s+think|hoping)\b/iu.test(firstSentence)) reason = "opening_phrase";
+    else {
+      const clauses = rewrite.split(/\.(?!\d)|[!?;。！？]/u)
+        .map(clause => clause.toLowerCase().replace(/[’‘]/gu, "'").replace(/[^\p{L}\p{N}'%]+/gu, ' ').trim())
+        .filter(Boolean);
+      if (new Set(clauses).size !== clauses.length) reason = "repetition";
+    }
+  }
+  if (reason) {
+    const error = new Error("invalid_rewrite");
+    error.diagnosticCode = `invalid_rewrite_${reason}`;
+    throw error;
+  }
+}
+// Missing feedback is a validation failure, never a numeric default.
+export function validateFeedbackScores(result) {
+  const names = ['charisma', 'warmth'];
+  if (!result || names.some(name => typeof result[name] !== 'number' ||
+    !Number.isFinite(result[name]) || result[name] < 0 || result[name] > 100)) {
+    const error = new Error('invalid_scores');
+    error.feedbackScores = {charisma:result?.charisma,warmth:result?.warmth};
+    error.diagnosticCode = !result || names.some(name => result[name] == null)
+      ? 'invalid_scores_missing'
+      : names.some(name => typeof result[name] !== 'number')
+        ? 'invalid_scores_type' : 'invalid_scores_range';
+    throw error;
+  }
+}
 export function parseScore(text) {
   let result;
   try {
@@ -60,6 +101,7 @@ export function parseScore(text) {
     throw error;
   }
   if (result?.unreadable === true) throw new Error("unreadable");
+  validateFeedbackScores(result);
   const names = ["clarity", "confidence", "charisma", "warmth"];
   if (
     !result ||
@@ -79,22 +121,7 @@ export function parseScore(text) {
         : "invalid_scores_range";
     throw error;
   }
-  if (
-    typeof result.rewrite !== "string" ||
-    !result.rewrite.trim() ||
-    result.rewrite.length > 2000 ||
-    /[\p{Extended_Pictographic}*]/u.test(result.rewrite)
-  ) {
-    const error = new Error("invalid_rewrite");
-    error.diagnosticCode = typeof result.rewrite !== "string"
-      ? "invalid_rewrite_missing"
-      : !result.rewrite.trim()
-        ? "invalid_rewrite_empty"
-        : result.rewrite.length > 2000
-          ? "invalid_rewrite_length"
-          : "invalid_rewrite_format";
-    throw error;
-  }
+  validateRewrite(result.rewrite);
   return Object.fromEntries([
     ...names.map((name) => [name, result[name]]),
     ["overall", Math.round(names.reduce((sum, name) => sum + result[name], 0) / 4)],
@@ -103,12 +130,15 @@ export function parseScore(text) {
 }
 export function formatScore(score, scoredFrom, heard) {
   if (!["audio", "transcript"].includes(scoredFrom)) throw new Error("invalid_scoring_source");
+  validateFeedbackScores(score);
+  validateRewrite(score.rewrite);
   return [
     `*Overall ${score.overall}/100*\n💬 Clarity ${score.clarity}/100\n🔥 Confidence ${score.confidence}/100\n✨ Charisma ${score.charisma}/100\n❤️ Warmth ${score.warmth}/100${heard ? `\n${heard}` : ""}\nscored from: ${scoredFrom}`,
     `*Better version*\n${score.rewrite}`,
   ];
 }
 export function providerMessage(code) {
+  if (code === "invalid_rewrite") return "Couldn't write a better version this time, please send it again.";
   return [
     "insufficient_quota",
     "billing_hard_limit_reached",

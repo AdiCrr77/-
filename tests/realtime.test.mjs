@@ -36,11 +36,10 @@ test("original PCM is sent unchanged, with text-only replies and a 500-token cap
   assert.equal(session.max_output_tokens, 500);
   assert.equal(session.audio.input.turn_detection, null);
   for (const rule of [
-    "Make the rewrite a stronger answer, not just a paraphrase",
-    "Clarity: lead with the pay request",
-    "Confidence: make the request direct and assured",
-    "Charisma: connect the user's stated contributions",
-    "Warmth: use respectful, collaborative wording",
+    "start from the user's own transcript across the round and edit it; do not write a new answer",
+    "Keep their words and phrases wherever they work",
+    "Fix only what lowered the weakest available score",
+    "first person, natural contractions, short sentences and everyday words",
     "Do not fill in missing facts",
     "Return only the finished answer in rewrite",
     "Never return a Confidence score",
@@ -81,6 +80,67 @@ test("original PCM is sent unchanged, with text-only replies and a 500-token cap
   });
   assert.equal(await promise, "synthetic result");
   assert.equal(socket.closed, true);
+});
+
+test("better-version prompt retains under 60 words and banned corporate phrase rules", async () => {
+  const promise = scoreAudio(Socket, "synthetic", new Uint8Array(4800));
+  Socket.instance.event({ type: "session.created" });
+  const instructions = Socket.instance.sent[0].session.instructions;
+  assert.ok(instructions.includes('under 60 words (at most 59 whitespace-separated words), including all visible gaps'));
+  assert.ok(instructions.includes('sayable in about 20 seconds'));
+  assert.ok(instructions.includes('count the words and check for banned phrases; edit again if there are 60 or more words or a banned phrase'));
+  for (const phrase of ['I wanted to take a moment', 'leverage', 'align']) {
+    assert.ok(instructions.includes(`"${phrase}"`));
+  }
+  assert.ok(!instructions.includes('Improve all four scoring areas together'));
+  assert.ok(instructions.includes('Never invent numbers, outcomes, dates, achievements, motives or commitments'));
+  assert.ok(instructions.includes('[add your outcome here]'));
+  assert.equal(Socket.instance.sent[0].session.tools[0].parameters.properties.v.properties.c.type, 'array');
+  Socket.instance.event({ type: 'error', error: { code: 'synthetic_failure' } });
+  await assert.rejects(promise, /synthetic_failure/);
+});
+
+test('Clarity uses only whole-round content checks and requests a nested diagnostic reason', async () => {
+  const promise = scoreAudio(Socket, 'synthetic', new Uint8Array(4800));
+  Socket.instance.event({ type: 'session.created' });
+  const session = Socket.instance.sent[0].session;
+  const clarity = session.instructions.split('\n').find(line => line.startsWith('Clarity:'));
+  for (const rule of [
+    "judge content only across the whole round's transcripts in chronological order, never delivery",
+    '(1) the ask is stated in the first two sentences of the whole answer',
+    '(2) the key facts are present: the goal, what was delivered, and the result with a number if the user supplied one',
+    '(3) one clear ask, not several', '(4) no repeating or circling back',
+    'Ignore articulation, pacing, tone, fillers, hesitations and pauses for Clarity',
+    'In v.r list every failed check number and its exact failing transcript words',
+    'never put it in the rewrite or other user-facing text',
+  ]) assert.ok(clarity.includes(rule), rule);
+  assert.ok(!clarity.includes('do articulation, pacing and phrasing make the ask easy to follow'));
+  const feedback = session.tools[0].parameters.properties.v;
+  assert.ok(feedback.required.includes('r'));
+  assert.equal(feedback.properties.r.type, 'string');
+  assert.equal(feedback.properties.r.maxLength, 240);
+  assert.equal(session.tools[0].parameters.properties.r.description, 'rewrite');
+  Socket.instance.event({ type: 'error', error: { code: 'synthetic_failure' } });
+  await assert.rejects(promise, /synthetic_failure/);
+});
+
+test("synthetic better version remains under 60 words without banned phrases through missing-fact gap handling", async () => {
+  const rewrite = "I'm asking for a 12% raise. We agreed I'd resolve 30 tickets. Compared with our agreement, I don't know yet.";
+  const promise = scoreAudio(Socket, 'synthetic', new Uint8Array(4800));
+  Socket.instance.event({ type: 'response.done', response: { status: 'completed', output: [{
+    type: 'function_call', name: 'submit_practice_result', arguments: JSON.stringify({
+      u: false, p: '12%', g: 'Resolve 30 tickets', d: '', e: "I don't know",
+      v: { c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}], k: 80, w: 90 }, n: 'Clear articulation; respectful tone.', r: rewrite,
+    }),
+  }] } });
+  const result = parsePracticeResult(await promise, undefined, false,
+    { confidence: 84, heard: 'Heard: 2 fillers, 1 long pause, 0 hedges' },
+    { askedFacts: ['deliveredOutcome'] });
+  assert.equal(result.question, null);
+  assert.ok(result.score.rewrite.includes('[add your outcome here]'));
+  assert.ok(result.score.rewrite.trim().split(/\s+/u).length < 60);
+  assert.doesNotMatch(result.score.rewrite, /i wanted to take a moment|\bleverag\w*|\balign\w*/iu);
+  assert.ok(result.score.rewrite.startsWith(rewrite));
 });
 test("monthly quota errors reject with their code and close the socket", async () => {
   const promise = scoreAudio(Socket, "synthetic", new Uint8Array(4800));
@@ -144,7 +204,7 @@ test("Realtime is required to submit a score tool and its arguments feed the exi
   );
   const result = {
     u: false, p: "10%", g: "sales goal", d: "met goal", e: "met",
-    v: {c:95,k:98,w:90},
+    v: {c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:98,w:90},
     r: "A synthetic raise request.",
   };
   assert.ok(session.instructions.includes("No chat message, preamble, explanation, thinking aloud"));
@@ -162,7 +222,7 @@ test("Realtime is required to submit a score tool and its arguments feed the exi
       ],
     },
   });
-  assert.equal(parsePracticeResult(await promise, undefined, false, {confidence:84,heard:"Heard: 2 fillers, 1 long pause, 0 hedges"}).score.overall, 92);
+  assert.equal(parsePracticeResult(await promise, undefined, false, {transcript:"I ask for a raise based on our goal.",confidence:84,heard:"Heard: 2 fillers, 1 long pause, 0 hedges"}).score.overall, 87);
 });
 test("an ordinary prose response cannot be accepted as a structured score", async () => {
   const promise = scoreAudio(Socket, "synthetic", new Uint8Array(4800));

@@ -1,3 +1,4 @@
+import { validateRewrite } from "./rules.js";
 import { v } from 'convex/values';
 import { measurementFromCounts } from './confidence.js';
 export const factNameValidator = v.union(v.literal('payRequest'),v.literal('agreedGoals'),v.literal('deliveredOutcome'),v.literal('expectations'));
@@ -22,7 +23,7 @@ const GAP_SENTENCES = {
   deliveredOutcome:`I delivered ${GAP_TEXT.deliveredOutcome}.`,expectations:`Compared with our agreement, ${GAP_TEXT.expectations}.`,
 };
 export function ensureRewriteGaps(rewrite, missing) {
-  if(typeof rewrite!=='string' || !rewrite.trim()) throw new Error('invalid_rewrite');
+  validateRewrite(rewrite);
   for(const name of missing) if(!rewrite.includes(GAP_TEXT[name])) rewrite+=` ${GAP_SENTENCES[name]}`;
   return rewrite;
 }

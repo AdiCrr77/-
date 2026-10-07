@@ -8,7 +8,7 @@ const RETRYABLE = new Set([
 ]);
 
 // Retry only malformed provider output, once, after an atomic global quota reservation.
-export async function evaluatePractice({ evaluate, reserveRetry, facts, report = reportDiagnostic, reportRejected = () => {}, requireObservations = false, measurement, round }) {
+export async function evaluatePractice({ evaluate, reserveRetry, facts, report = reportDiagnostic, reportRejected = () => {}, onRewriteRejected = () => {}, onFeedbackScoresRejected = () => {}, requireObservations = false, measurement, round, clarityTranscripts }) {
   const attempt = async () => {
     let text;
     try { text = await evaluate(); }
@@ -16,8 +16,10 @@ export async function evaluatePractice({ evaluate, reserveRetry, facts, report =
       if (RETRYABLE.has(error.message) && typeof error.rejectedResponseText === "string") reportRejected(error.rejectedResponseText);
       throw error;
     }
-    try { return parsePracticeResult(text, facts, requireObservations, measurement, round); }
+    try { return parsePracticeResult(text, facts, requireObservations, measurement, round, clarityTranscripts); }
     catch (error) {
+      if (error.message === 'invalid_scores' && error.feedbackScores) onFeedbackScoresRejected(error.feedbackScores);
+      if (error.message === "invalid_rewrite") onRewriteRejected(error.diagnosticCode ?? "invalid_rewrite");
       if (RETRYABLE.has(error.message)) reportRejected(text);
       throw error;
     }
@@ -27,7 +29,7 @@ export async function evaluatePractice({ evaluate, reserveRetry, facts, report =
   } catch (error) {
     if (!RETRYABLE.has(error.message)) throw error;
     report(error);
-    if (!await reserveRetry()) throw new Error("call_limit_reached");
+    if (!await reserveRetry()) throw error.message === "invalid_rewrite" ? error : new Error("call_limit_reached");
     return attempt();
   }
 }
@@ -46,6 +48,7 @@ export async function evaluateMeasuredPractice({ transcribe, reserveFeedback, re
   return evaluatePractice({ ...options,
     evaluate:()=>options.evaluate(snapshot?{notes:snapshot.notes,askedFacts:snapshot.askedFacts}:undefined),
     round:snapshot?{askedFacts:snapshot.askedFacts}:undefined,
+    clarityTranscripts:snapshot?snapshot.notes.map(note=>note.transcript):[note.transcript],
     measurement, requireObservations:false,
   });
 }

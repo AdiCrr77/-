@@ -155,7 +155,7 @@ test("missing facts continue the session, skip supplied facts and score only aft
   await finishDelivery(ctx, { ...meta("facts2"), messages: [second.question], score: null, facts: second.facts, question: second.question });
   await prepareDelivery(ctx, meta("facts3"));
   claim = await claimDelivery(ctx, meta("facts3"));
-  const third = parsePracticeResult(JSON.stringify({ unreadable: false, facts: { payRequest: null, agreedGoals: null, deliveredOutcome: null, expectations: "Met expectations" }, clarity: 80, confidence: 80, charisma: 80, warmth: 80, rewrite: "I am asking for a 10% raise based on delivering the agreed project by Friday, meeting our expectations." }), claim.facts);
+  const third = parsePracticeResult(JSON.stringify({ unreadable: false, facts: { payRequest: null, agreedGoals: null, deliveredOutcome: null, expectations: "Met expectations" }, clarity: 80, confidence: 80, charisma: 80, warmth: 80, rewrite: "I am asking for a 10% raise based on delivering the agreed project by Friday, meeting our agreed target." }), claim.facts);
   assert.equal(third.question, null);
   assert.equal(third.score.overall, 80);
   await finishDelivery(ctx, { ...meta("facts3"), messages: ["synthetic result"], facts: third.facts, score: third.score });
@@ -279,9 +279,9 @@ test("feedback cannot exceed the 30-call cap or use an obsolete session", async 
 test("whole-round state asks each missing fact once, keeps all note counts and clears transcripts after scoring", async () => {
   const ctx=database(); await ready(ctx);
   const replies=[
-    {u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'',v:{c:80,k:75,w:85},n:'Hesitant but respectful delivery.',r:'I request a 12% raise.'},
-    {u:false,p:'',g:'',d:'',e:'',v:{c:80,k:75,w:85},n:'Clear articulation.',r:'I request a 12% raise.'},
-    {u:false,p:'',g:'',d:'',e:'',v:{c:80,k:75,w:85},n:'Steady voice.',r:'I request a 12% raise.'},
+    {u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Hesitant but respectful delivery.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Clear articulation.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Steady voice.',r:'I request a 12% raise.'},
   ];
   const ids=['voice','round-2','round-3'];
   for(let i=0;i<ids.length;i++) {

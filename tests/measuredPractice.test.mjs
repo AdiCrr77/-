@@ -3,16 +3,34 @@ import assert from 'node:assert/strict';
 import { evaluateMeasuredPractice } from '../convex/lib/evaluation.js';
 import { measureWords } from '../convex/lib/confidence.js';
 import { formatScore } from '../convex/lib/rules.js';
-const measurement=measureWords([{word:'um',start:0,end:.3},{word:'uh',start:2.5,end:2.8},{word:'maybe',start:2.8,end:3}],4);
-const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'Resolved 40 tickets',e:'Exceeded the target',v:{c:80,k:75,w:85},r:'I request a 12% raise after exceeding our ticket target.'};
+import { formatScoringDiagnostic } from '../convex/lib/scoringDiagnostic.js';
+const measurement={transcript:"I request a 12% raise. Our goal was 30 tickets. Resolved 40 tickets. synthetic evidence 1 synthetic evidence 2 synthetic evidence 3 synthetic evidence 4",...measureWords([{word:'um',start:0,end:.3},{word:'uh',start:2.5,end:2.8},{word:'maybe',start:2.8,end:3}],4)};
+const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'Resolved 40 tickets',e:'Exceeded the target',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},r:'I request a 12% raise after exceeding our ticket target.'};
+test('Clarity reason survives feedback parsing into local diagnostics but stays out of score, rewrite and WhatsApp',async()=>{
+ const reason='4: "repeated"';
+ const result=await evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{...output.v,r:reason}}),reserveRetry:async()=>assert.fail('no retry needed')});
+ assert.equal(result.clarityReason,reason);
+ assert.equal(result.score.rewrite,output.r);
+ assert.ok(!JSON.stringify(result.score).includes(reason));
+ const messages=formatScore(result.score,'audio',result.heard);
+ assert.equal(messages[0].split('\n').length,7);
+ assert.ok(messages.every(message=>!message.includes(reason)));
+ const block=formatScoringDiagnostic({fullTranscript:'Synthetic transcript.',duration:4,words:[],biggestGaps:[],fillers:[],longPauses:[],hedges:[],r:result.clarityReason});
+ assert.equal(JSON.parse(block.split('\n').slice(1,-1).join('\n')).r,reason);
+});
+test('invalid Clarity checks reject instead of accepting an AI number',async()=>{
+ for(const c of [80,null,[],[{p:true,e:'ask'}],Array(4).fill({p:'pass',e:'ask'}),Array(4).fill({p:123,e:'ask'})]) {
+ await assert.rejects(evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{...output.v,c}}),reserveRetry:async()=>true,report:()=>{}}),/invalid_scores/);
+ }
+});
 test('local Confidence wins over model scores and builds the exact seven-line scorecard',async()=>{
  const calls=[];
  const result=await evaluateMeasuredPractice({transcribe:async()=>{calls.push('transcribe');return measurement;},reserveFeedback:async()=>{calls.push('reserve');return true;},evaluate:async()=>{calls.push('feedback');return JSON.stringify({...output,confidence:100,heard:'invented'});},reserveRetry:async()=>assert.fail('retry not needed')});
  assert.deepEqual(calls,['transcribe','reserve','feedback']);
  assert.equal(result.score.confidence,80);
- assert.equal(result.score.overall,80);
+ assert.equal(result.score.overall,79);
  const [card,rewrite]=formatScore(result.score,'audio',result.heard);
- assert.equal(card,'*Overall 80/100*\n💬 Clarity 80/100\n🔥 Confidence 80/100\n✨ Charisma 75/100\n❤️ Warmth 85/100\nHeard: 2 fillers, 1 long pause, 1 hedge\nscored from: audio');
+ assert.equal(card,'*Overall 79/100*\n💬 Clarity 75/100\n🔥 Confidence 80/100\n✨ Charisma 75/100\n❤️ Warmth 85/100\nHeard: 2 fillers, 1 long pause, 1 hedge\nscored from: audio');
  assert.equal(rewrite,'*Better version*\n'+output.r);
 });
 test('a failed transcription or quota reservation prevents feedback, never substitutes perfect Confidence',async()=>{
@@ -55,4 +73,23 @@ test('round retry keeps all transcripts and counts once across feedback attempts
 });
 test('obsolete round prevents feedback after a successful transcription',async()=>{
  await assert.rejects(evaluateMeasuredPractice({transcribe:async()=>({...measurement,transcript:'Synthetic stale note'}),recordTranscript:async()=>({accepted:false,notes:[],askedFacts:[]}),reserveFeedback:async()=>assert.fail('no extra call'),evaluate:async()=>assert.fail('no feedback call'),reserveRetry:async()=>false}),/stale_session/);
+});
+
+ test('repeated shortfall wording fails check 4 only and produces Clarity 75',async()=>{
+ const words='we have not achieved that goal. We fell short a little bit';
+ const c=[{p:true,e:'12%'},{p:true,e:'Resolved 40 tickets'},{p:true,e:'12%'},{p:false,e:words}];
+ const result=await evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{c,k:75,w:85,r:'ignored model reason'}}),reserveRetry:async()=>false});
+ assert.equal(result.score.clarity,75);
+ assert.equal(result.clarityReason,`4: "${words}"`);
+ });
+
+test('Clarity deducts exactly 25 for each failed check and lists every failure in order',async()=>{
+ for(let mask=0;mask<16;mask++) {
+ const c=Array.from({length:4},(_,index)=>({p:!(mask & (1<<index)),e:index===2?"I'd also like a bonus.":`synthetic evidence ${index+1}`}));
+ const result=await evaluateMeasuredPractice({transcribe:async()=>({...measurement,transcript:measurement.transcript+" I'd also like a bonus."}),reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{...output.v,c,r:'All passed; ignored'}}),reserveRetry:async()=>assert.fail('no retry')});
+ const failed=c.flatMap((check,index)=>check.p?[]:[`${index+1}: "${check.e}"`]);
+ assert.equal(result.score.clarity,100-25*failed.length);
+ assert.equal(result.clarityReason,failed.length?failed.join('; '):'All four checks passed.');
+ assert.equal(result.score.confidence,80);
+ }
 });

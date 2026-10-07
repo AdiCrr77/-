@@ -75,6 +75,18 @@ Inspect the installed Hermes WhatsApp bridge before connecting it. Use its actua
 - Milestones 2–6, except the approved raise missing-fact flow brought forward from milestone 3.
 - Calendar access, reminders and WhatsApp Business migration.
 
+## Approved content-only Clarity and local reason (2026-10-07)
+
+- Clarity now judges the entire round's content only: ask within its first two sentences, supplied goal/delivery/result facts including any supplied number, one clear ask, and no repetition or circling back. Delivery cues are explicitly excluded; Charisma/Warmth and better-version instructions remain unchanged.
+- Nested feedback field v.r requests a one-sentence Clarity check reason; top-level r remains the rewrite. A supplied reason is validated and returned only as r inside the ephemeral local SCORING DIAGNOSTIC block. It is excluded from saved scores, session facts, WhatsApp scorecards and rewrites. Existing terminal printing and transcription diagnostics remain active.
+- All 108 tests pass and the scoring action compiles. Tests check exact content instructions and tool schema, reason validation/transport, seven-line formatting and terminal-only printing. Confidence formula, word counting, models and caps are unchanged. Saved for the running Convex dev uploader; phone verification remains pending.
+
+## Approved better-version instruction edit (2026-10-07)
+
+- Only rewrite instructions changed: edit the user's round transcript, retain useful wording and factual meaning, target the weakest available feedback score, use first-person everyday speech with contractions, and request fewer than 60 words including missing-fact gaps. Ban "I wanted to take a moment", "leverage", "align" and inflections; aim for about 20 seconds. Clarity scoring instructions, Confidence formula and detectors, scorecard, model and caps remain unchanged.
+- Limitation: the feedback prompt receives no code-computed Confidence score, so instructions alone can select only the weakest of Clarity, Charisma and Warmth. Selecting the weakest of all four requires an additional input change, outside this instructions-only authorization. Successful raw feedback JSON is not retained or logged; no actual provider output is available for the requested verbatim diagnosis.
+- All 105 tests pass; checks cover transmitted rewrite instructions, unchanged Clarity instructions/schema, and a synthetic rewrite surviving missing-fact gap insertion under 60 words without banned phrases. These offline tests do not establish live model compliance. Files saved for the running Convex dev uploader; phone verification remains pending.
+
 ## Approved scoring repeatability fix (2026-10-05)
 
 - Fixed observation rubrics are written in SCORING_RUBRIC.md and calculated by Convex, replacing direct model scores on the live scoring path. One Heard: line lists observations after the category scores; DESIGN.md now permits seven lines. Rewrite instructions, model and caps are unchanged.

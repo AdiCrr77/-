@@ -99,7 +99,8 @@ test("monthly exhaustion is distinguished from transient rate limits", () => {
   assert.equal(providerMessage("insufficient_quota"), PAUSED);
   assert.equal(providerMessage("rate_limit_exceeded"), BUSY);
   assert.equal(providerMessage("unreadable"), UNREADABLE);
-  for (const code of ["invalid_json", "invalid_facts", "invalid_scores", "invalid_rewrite", "missing_result_tool", "incomplete_response"]) assert.equal(providerMessage(code), COULDNT_SCORE);
+  for (const code of ["invalid_json", "invalid_facts", "invalid_scores", "missing_result_tool", "incomplete_response"]) assert.equal(providerMessage(code), COULDNT_SCORE);
+  assert.equal(providerMessage("invalid_rewrite"), "Couldn't write a better version this time, please send it again.");
   assert.equal(providerMessage("call_limit_reached"), BUSY);
 });
 test("backend identity rejects malformed phone numbers and message IDs", () => {
