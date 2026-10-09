@@ -1,3 +1,4 @@
+import {checkedFeedback} from './fixtures/feedback.mjs';
 import { parsePracticeResult } from "../convex/lib/facts.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -130,7 +131,7 @@ test("synthetic better version remains under 60 words without banned phrases thr
   Socket.instance.event({ type: 'response.done', response: { status: 'completed', output: [{
     type: 'function_call', name: 'submit_practice_result', arguments: JSON.stringify({
       u: false, p: '12%', g: 'Resolve 30 tickets', d: '', e: "I don't know",
-      v: { c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}], k: 80, w: 90 }, n: 'Clear articulation; respectful tone.', r: rewrite,
+      v: { c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}], ...checkedFeedback(80,90) }, n: 'Clear articulation; respectful tone.', r: rewrite,
     }),
   }] } });
   const result = parsePracticeResult(await promise, undefined, false,
@@ -204,7 +205,7 @@ test("Realtime is required to submit a score tool and its arguments feed the exi
   );
   const result = {
     u: false, p: "10%", g: "sales goal", d: "met goal", e: "met",
-    v: {c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:98,w:90},
+    v: {c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(98,90)},
     r: "A synthetic raise request.",
   };
   assert.ok(session.instructions.includes("No chat message, preamble, explanation, thinking aloud"));
@@ -222,7 +223,7 @@ test("Realtime is required to submit a score tool and its arguments feed the exi
       ],
     },
   });
-  assert.equal(parsePracticeResult(await promise, undefined, false, {transcript:"I ask for a raise based on our goal.",confidence:84,heard:"Heard: 2 fillers, 1 long pause, 0 hedges"}).score.overall, 87);
+  assert.equal(parsePracticeResult(await promise, undefined, false, {transcript:"I ask for a raise based on our goal.",confidence:84,heard:"Heard: 2 fillers, 1 long pause, 0 hedges"}).score.overall, 90);
 });
 test("an ordinary prose response cannot be accepted as a structured score", async () => {
   const promise = scoreAudio(Socket, "synthetic", new Uint8Array(4800));

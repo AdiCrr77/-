@@ -19,7 +19,7 @@ Anxiety: Another ChatGPT giving vague advice.
 Habit: ChatGPT is open and free; a friend is one message away.
 
 What the product does about each: 
-Push -> Scores the voice note on Clarity, Confidence, Charisma and Warmth, gives a better version of their own words, and asks the follow-up.
+Push -> Scores the voice note on Clarity, Confidence, Persuasion and Warmth, gives a better version of their own words, and asks the follow-up.
 Pull -> The demo person keeps asking follow-ups until the overall score stays above 85, so they know what to say and how to answer what comes next.
 Anxiety -> After one voice note they get a score and the exact words to say, not vague advice.
 Habit -> It lives in WhatsApp, with no login, no name and no setup prompt. The demo person speaks first except for one situation laid out below
@@ -51,9 +51,9 @@ Get clarity on your relationship situation: Can we talk about us for a minute?
 6. The demo person asks a follow-up based on what they said, and they answer again, until they score 85+.
 [last] They know what to say and how to answer the follow-ups.
 
-Score: Clarity, Confidence, Charisma, Warmth, each out of 100. Overall = the average of the four. Done when the overall stays above 85 to the end of the conversation.
+Score: Clarity, Confidence, Persuasion, Warmth, each out of 100. Overall = the average of the four. Done when the overall stays above 85 to the end of the conversation.
 Clarity: Is the main point clear in the first 2 sentences of the ask?
-Charisma: How well can you influence the other person based on the conversation you have?
+Persuasion: How well can you influence the other person based on the conversation you have?
 Warmth: How respectful are you to the other person irrespective of situations and disagreements?
 Confidence: How much do you hold your ground through repeated pushbacks and scrutiny?
 
@@ -90,7 +90,7 @@ Does (the must haves: one person finishes the one job):
 1. Four situations to pick from, each with its own demo person and the facts the app checks for (listed under Other flows).
 2. The demo person speaks first. The user answers with a voice note except the party: the app prompts them to start
 3. If a fact is missing, the app asks only for that fact.
-4. A score on Clarity, Confidence, Charisma and Warmth, each out of 100. Overall = the average.
+4. A score on Clarity, Confidence, Persuasion and Warmth, each out of 100. Overall = the average.
 5. A better version of their own words, usable as-is in the real conversation.
 6. The demo person asks follow-ups until the overall score stays above 85.
 7. "stop", or 2 minutes of silence, sends their best version so far.
@@ -106,7 +106,7 @@ The AI can actually hear confidence and warmth in a voice note.
 Thirty-minute check, no code (run it while you build), and what happened: Uploaded my voice note to ChatGPT; it said audio playback and transcription weren't available in that session, so it couldn't listen. Not proven yet. Milestone 1 tests it on the build.
 
 ##7. Milestones
-1. I can send one voice note answer to the demo manager's raise question and get back scores for Clarity, Confidence, Charisma and Warmth, plus a better version of my own words.
+1. I can send one voice note answer to the demo manager's raise question and get back scores for Clarity, Confidence, Persuasion and Warmth, plus a better version of my own words.
 2. I can keep answering the demo manager's follow-ups until my overall score stays above 85, and "stop" or 2 minutes of silence sends me my best version.
 3. I can leave out a fact (e.g. the hike %) and the app asks me only for that fact.
 4. I can do the same in the delay, party (where I start the conversation) and dating scenarios.

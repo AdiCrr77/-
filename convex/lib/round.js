@@ -3,7 +3,7 @@ import { v } from 'convex/values';
 import { measurementFromCounts } from './confidence.js';
 export const factNameValidator = v.union(v.literal('payRequest'),v.literal('agreedGoals'),v.literal('deliveredOutcome'),v.literal('expectations'));
 export const roundNoteValidator = v.object({
-  messageId:v.string(), transcript:v.string(), fillers:v.number(), longPauses:v.number(), hedges:v.number(), audioFeedback:v.optional(v.string()),
+  messageId:v.string(), transcript:v.string(), fullTranscript:v.optional(v.string()), fillers:v.number(), longPauses:v.number(), hedges:v.number(), audioFeedback:v.optional(v.string()),
 });
 export function measureRound(notes) {
   const totals={fillers:0,longPauses:0,hedges:0};

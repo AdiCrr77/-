@@ -18,7 +18,7 @@ import {
 const answer = {
   clarity: 71,
   confidence: 86,
-  charisma: 79,
+  persuasion: 79,
   warmth: 90,
   rewrite: "I would like a 10% raise for the results I delivered.",
 };
@@ -68,7 +68,7 @@ test("WhatsApp scorecard and rewrite are separate, under six lines, with approve
   const [card, rewrite] = formatScore(parseScore(JSON.stringify(answer)), "audio");
   assert.equal(
     card,
-    "*Overall 82/100*\n💬 Clarity 71/100\n🔥 Confidence 86/100\n✨ Charisma 79/100\n❤️ Warmth 90/100\nscored from: audio",
+    "*Overall 82/100*\n💬 Clarity 71/100\n🔥 Confidence 86/100\n✨ Persuasion 79/100\n❤️ Warmth 90/100\nscored from: audio",
   );
   assert.equal(rewrite, `*Better version*\n${answer.rewrite}`);
   assert.equal(card.split("\n").length, 6);

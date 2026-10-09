@@ -1,3 +1,4 @@
+import {checkedFeedback} from './fixtures/feedback.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -117,7 +118,7 @@ test("persisted result contains scores and rewrite only, and duplicate finish ca
     score: {
       clarity: 80,
       confidence: 90,
-      charisma: 70,
+      persuasion: 70,
       warmth: 100,
       overall: 85,
       rewrite: "A made-up raise request.",
@@ -155,7 +156,7 @@ test("missing facts continue the session, skip supplied facts and score only aft
   await finishDelivery(ctx, { ...meta("facts2"), messages: [second.question], score: null, facts: second.facts, question: second.question });
   await prepareDelivery(ctx, meta("facts3"));
   claim = await claimDelivery(ctx, meta("facts3"));
-  const third = parsePracticeResult(JSON.stringify({ unreadable: false, facts: { payRequest: null, agreedGoals: null, deliveredOutcome: null, expectations: "Met expectations" }, clarity: 80, confidence: 80, charisma: 80, warmth: 80, rewrite: "I am asking for a 10% raise based on delivering the agreed project by Friday, meeting our agreed target." }), claim.facts);
+  const third = parsePracticeResult(JSON.stringify({ unreadable: false, facts: { payRequest: null, agreedGoals: null, deliveredOutcome: null, expectations: "Met expectations" }, clarity: 80, confidence: 80, persuasion: 80, warmth: 80, rewrite: "I am asking for a 10% raise based on delivering the agreed project by Friday, meeting our agreed target." }), claim.facts);
   assert.equal(third.question, null);
   assert.equal(third.score.overall, 80);
   await finishDelivery(ctx, { ...meta("facts3"), messages: ["synthetic result"], facts: third.facts, score: third.score });
@@ -168,7 +169,7 @@ test("missing facts continue the session, skip supplied facts and score only aft
 
 test("no agreed goal is accepted and oversized or malformed extracted facts are rejected", () => {
   const facts = { payRequest: "10%", agreedGoals: "No goals were agreed", deliveredOutcome: "Finished the project", expectations: "No agreed benchmark" };
-  const result = { unreadable: false, facts, clarity: 75, confidence: 75, charisma: 75, warmth: 75, rewrite: "A synthetic request based on the supplied facts." };
+  const result = { unreadable: false, facts, clarity: 75, confidence: 75, persuasion: 75, warmth: 75, rewrite: "A synthetic request based on the supplied facts." };
   assert.equal(parsePracticeResult(JSON.stringify(result)).question, null);
   assert.throws(() => parsePracticeResult(JSON.stringify({ ...result, facts: { ...facts, deliveredOutcome: "x".repeat(601) } })), /invalid_facts/);
   assert.equal(parsePracticeResult(JSON.stringify({ ...result, facts: {} })).question, FACT_QUESTIONS.payRequest);
@@ -186,11 +187,11 @@ test("omitted unknown facts ask only the next missing question and preserve prio
 });
 
 test("flat provider facts merge into session context without showing scores before facts are complete", () => {
-  const first = parsePracticeResult(JSON.stringify({ unreadable: false, payRequest: "10%", agreedGoals: "", deliveredOutcome: "Delivered the project", expectations: "", clarity: 80, confidence: 75, charisma: 75, warmth: 80, rewrite: "" }));
+  const first = parsePracticeResult(JSON.stringify({ unreadable: false, payRequest: "10%", agreedGoals: "", deliveredOutcome: "Delivered the project", expectations: "", clarity: 80, confidence: 75, persuasion: 75, warmth: 80, rewrite: "" }));
   assert.equal(first.facts.payRequest, "10%");
   assert.equal(first.question, FACT_QUESTIONS.agreedGoals);
   assert.equal(first.score, null);
-  const second = parsePracticeResult(JSON.stringify({ unreadable: false, payRequest: "", agreedGoals: "Finish by Friday", deliveredOutcome: "", expectations: "Met expectations", clarity: 80, confidence: 75, charisma: 75, warmth: 80, rewrite: "A complete synthetic raise request." }), first.facts);
+  const second = parsePracticeResult(JSON.stringify({ unreadable: false, payRequest: "", agreedGoals: "Finish by Friday", deliveredOutcome: "", expectations: "Met expectations", clarity: 80, confidence: 75, persuasion: 75, warmth: 80, rewrite: "A complete synthetic raise request." }), first.facts);
   assert.equal(second.question, null);
   assert.equal(second.score.overall, 78);
 });
@@ -279,9 +280,9 @@ test("feedback cannot exceed the 30-call cap or use an obsolete session", async 
 test("whole-round state asks each missing fact once, keeps all note counts and clears transcripts after scoring", async () => {
   const ctx=database(); await ready(ctx);
   const replies=[
-    {u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Hesitant but respectful delivery.',r:'I request a 12% raise.'},
-    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Clear articulation.',r:'I request a 12% raise.'},
-    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Steady voice.',r:'I request a 12% raise.'},
+    {u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(75,85)},n:'Hesitant but respectful delivery.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(75,85)},n:'Clear articulation.',r:'I request a 12% raise.'},
+    {u:false,p:'',g:'',d:'',e:'',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(75,85)},n:'Steady voice.',r:'I request a 12% raise.'},
   ];
   const ids=['voice','round-2','round-3'];
   for(let i=0;i<ids.length;i++) {

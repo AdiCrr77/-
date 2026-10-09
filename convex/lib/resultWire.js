@@ -1,4 +1,4 @@
-import { validateFeedbackScores } from "./rules.js";
+import { scoreFeedbackChecks } from "./feedbackChecks.js";
 import { quoteMatches, hasSecondRequest } from "./clarity.js";
 import { OBSERVATION_FIELDS } from "./rubric.js";
 
@@ -12,11 +12,11 @@ export const OBSERVATION_WIRE = {
 export const COMPACT_OBSERVATION_FIELDS = Object.fromEntries(Object.entries(OBSERVATION_WIRE).map(
   ([name, key]) => [key, { ...OBSERVATION_FIELDS[name], description: name }],
 ));
-export function expandResult(result, transcripts = []) {
+export function expandResult(result, transcripts = [], situation = 'raise') {
   if (!result || typeof result !== "object" || Array.isArray(result) || !("o" in result || "u" in result)) return result;
   if (result.v !== undefined) {
     if (!result.v || typeof result.v !== 'object' || Array.isArray(result.v)) throw new Error('invalid_scores');
-    if (result.u !== true) validateFeedbackScores({charisma:result.v.k,warmth:result.v.w});
+    const feedback = scoreFeedbackChecks(result.v,transcripts,situation);
     const checks = result.v.c;
     if (!Array.isArray(checks) || checks.length !== 4 || checks.some(check =>
       !check || typeof check !== 'object' || Array.isArray(check) ||
@@ -31,8 +31,9 @@ export function expandResult(result, transcripts = []) {
     return {
       unreadable: result.u,
       ...Object.fromEntries(Object.entries(FACT_WIRE).map(([name, key]) => [name, result[key]])),
-      clarity: 100 - 25 * failed.length, charisma: result.v.k, warmth: result.v.w, rewrite: result.r, ...(result.n !== undefined ? {audioFeedback:result.n} : {}),
+      clarity: 100 - 25 * failed.length, persuasion: feedback.persuasion, warmth: feedback.warmth, rewrite: result.r, ...(result.n !== undefined ? {audioFeedback:result.n} : {}),
       clarityChecks,
+      persuasionChecks:feedback.persuasionChecks,warmthChecks:feedback.warmthChecks,warmthInsult:feedback.warmthInsult,
       clarityReason: failed.length ? failed.join("; ") : "All four checks passed.",
     };
   }

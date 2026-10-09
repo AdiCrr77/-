@@ -1,3 +1,4 @@
+import {checkedFeedback} from './fixtures/feedback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {expandResult} from '../convex/lib/resultWire.js';
@@ -5,7 +6,7 @@ import {formatScoringDiagnostic} from '../convex/lib/scoringDiagnostic.js';
 import {evaluateMeasuredPractice} from '../convex/lib/evaluation.js';
 const transcript="I'd like a 12% raise. Our goal was 30 tickets. I resolved 40 tickets, exceeding the goal.";
 const c=[{p:true,e:"I'd like a 12% raise"},{p:true,e:'I resolved 40 tickets'},{p:true,e:'12% raise'},{p:true,e:'exceeding the goal'}];
-const output={u:false,p:'12%',g:'30 tickets',d:'40 tickets',e:'Exceeded goal',v:{c,k:80,w:90},n:'Clear delivery.',r:"I'd like a 12% raise. Our goal was 30 tickets. I resolved 40 tickets, exceeding the goal."};
+const output={u:false,p:'12%',g:'30 tickets',d:'40 tickets',e:'Exceeded goal',v:{c,...checkedFeedback(80,90,"I'd like a 12% raise")},n:'Clear delivery.',r:"I'd like a 12% raise. Our goal was 30 tickets. I resolved 40 tickets, exceeding the goal."};
 test('Clarity passes require an exact transcript quote; invented words fail',()=>{
  const result=expandResult({...output,v:{...output.v,c:c.map((check,i)=>i===1?{p:true,e:'I resolved 400 tickets'}:check)}},[transcript]);
  assert.equal(result.clarity,75);

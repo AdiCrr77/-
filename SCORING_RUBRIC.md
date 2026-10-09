@@ -1,6 +1,6 @@
 # Active audio scoring rules
 
-Confidence and Heard are computed in Convex from Whisper word timestamps. The feedback model, gpt-realtime-2.1-mini, hears the current original audio and receives every accepted round transcript plus retained earlier delivery observations to produce whole-round Clarity, Charisma, Warmth and the better version. Earlier recordings are deleted and are not replayed. It cannot supply Confidence or Heard.
+Confidence and Heard are computed in Convex from Whisper word timestamps. The feedback model, gpt-realtime-2.1-mini, hears the current original audio and receives every accepted round transcript plus retained earlier delivery observations to produce whole-round Clarity, Persuasion, Warmth and the better version. Earlier recordings are deleted and are not replayed. It cannot supply Confidence or Heard.
 
 ## Confidence
 
@@ -16,7 +16,7 @@ Whisper request: whisper-1, verbose_json, timestamp_granularities[]=word, temper
 
 ## Other categories and rewrite
 
-The feedback call assesses all round transcripts and accumulated audible delivery observations for Clarity, Charisma and Warmth out of 100, using PRODUCT.md definitions. Convex validates these numeric scores, inserts its own Confidence, and rounds their mean to a whole number. Rewrite instructions and the seven-line scorecard remain unchanged apart from the content of Heard.
+The feedback call assesses all round transcripts and accumulated audible delivery observations for Clarity, Persuasion and Warmth out of 100, using PRODUCT.md definitions. Convex validates these numeric scores, inserts its own Confidence, and rounds their mean to a whole number. Rewrite instructions and the seven-line scorecard remain unchanged apart from the content of Heard.
 
 ## Limits and proof
 

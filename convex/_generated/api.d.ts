@@ -10,6 +10,7 @@
 
 import type * as clarityAudit from "../clarityAudit.js";
 import type * as clarityQuota from "../clarityQuota.js";
+import type * as feedbackAudit from "../feedbackAudit.js";
 import type * as http from "../http.js";
 import type * as lib_clarity from "../lib/clarity.js";
 import type * as lib_confidence from "../lib/confidence.js";
@@ -17,6 +18,9 @@ import type * as lib_diagnostics from "../lib/diagnostics.js";
 import type * as lib_evaluation from "../lib/evaluation.js";
 import type * as lib_factQuality from "../lib/factQuality.js";
 import type * as lib_facts from "../lib/facts.js";
+import type * as lib_feedbackChecks from "../lib/feedbackChecks.js";
+import type * as lib_feedbackProtocol from "../lib/feedbackProtocol.js";
+import type * as lib_feedbackRubrics from "../lib/feedbackRubrics.js";
 import type * as lib_realtime from "../lib/realtime.js";
 import type * as lib_resultWire from "../lib/resultWire.js";
 import type * as lib_round from "../lib/round.js";
@@ -24,6 +28,7 @@ import type * as lib_rubric from "../lib/rubric.js";
 import type * as lib_rules from "../lib/rules.js";
 import type * as lib_scoringDiagnostic from "../lib/scoringDiagnostic.js";
 import type * as lib_state from "../lib/state.js";
+import type * as lib_textScoring from "../lib/textScoring.js";
 import type * as lib_transcription from "../lib/transcription.js";
 import type * as lib_transcriptionDiagnostics from "../lib/transcriptionDiagnostics.js";
 import type * as practice from "../practice.js";
@@ -38,6 +43,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   clarityAudit: typeof clarityAudit;
   clarityQuota: typeof clarityQuota;
+  feedbackAudit: typeof feedbackAudit;
   http: typeof http;
   "lib/clarity": typeof lib_clarity;
   "lib/confidence": typeof lib_confidence;
@@ -45,6 +51,9 @@ declare const fullApi: ApiFromModules<{
   "lib/evaluation": typeof lib_evaluation;
   "lib/factQuality": typeof lib_factQuality;
   "lib/facts": typeof lib_facts;
+  "lib/feedbackChecks": typeof lib_feedbackChecks;
+  "lib/feedbackProtocol": typeof lib_feedbackProtocol;
+  "lib/feedbackRubrics": typeof lib_feedbackRubrics;
   "lib/realtime": typeof lib_realtime;
   "lib/resultWire": typeof lib_resultWire;
   "lib/round": typeof lib_round;
@@ -52,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   "lib/rules": typeof lib_rules;
   "lib/scoringDiagnostic": typeof lib_scoringDiagnostic;
   "lib/state": typeof lib_state;
+  "lib/textScoring": typeof lib_textScoring;
   "lib/transcription": typeof lib_transcription;
   "lib/transcriptionDiagnostics": typeof lib_transcriptionDiagnostics;
   practice: typeof practice;

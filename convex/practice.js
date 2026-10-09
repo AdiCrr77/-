@@ -12,13 +12,13 @@ const decision = v.object({
 const score = v.object({
   clarity: v.number(),
   confidence: v.number(),
-  charisma: v.number(),
+  persuasion: v.number(),
   warmth: v.number(),
   overall: v.number(),
   rewrite: v.string(),
 });
 export const recordNote = internalMutation({
-  args:{...identity,transcript:v.string(),fillers:v.number(),longPauses:v.number(),hedges:v.number()},
+  args:{...identity,transcript:v.string(),fullTranscript:v.optional(v.string()),fillers:v.number(),longPauses:v.number(),hedges:v.number()},
   returns:v.object({accepted:v.boolean(),notes:v.array(roundNoteValidator),askedFacts:v.array(factNameValidator)}),
   handler:recordNoteHandler,
 });

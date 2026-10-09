@@ -1,10 +1,11 @@
+import {checkedFeedback} from './fixtures/feedback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {measureRound} from '../convex/lib/round.js';
 import {measureWords} from '../convex/lib/confidence.js';
 import {parsePracticeResult,emptyFacts,FACT_QUESTIONS} from '../convex/lib/facts.js';
 const measured=()=>measureWords([{word:'Hello',start:3,end:3.5}],10);
-const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'Exceeded the target',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},n:'Clear articulation; respectful tone.',r:'I am requesting a 12% raise.'};
+const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'',e:'Exceeded the target',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(75,85)},n:'Clear articulation; respectful tone.',r:'I am requesting a 12% raise.'};
 test('round Confidence sums counts from every note without pauses across note boundaries',()=>{
  const a=measureWords([{word:'Um',start:0,end:.3},{word:'maybe',start:2.5,end:3}],10);
  const b=measureWords([{word:'uh',start:8,end:8.5}],90);

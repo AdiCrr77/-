@@ -3,7 +3,7 @@ Read this before building or changing any message. This product lives in WhatsAp
 
 ## 1. The feeling, in labels
 - Intro: one short message that says what this does and lists the four situations to pick from.
-- Scorecard: four scores (Clarity, Confidence, Charisma, Warmth) and the overall, readable in 3 seconds.
+- Scorecard: four scores (Clarity, Confidence, Persuasion, Warmth) and the overall, readable in 3 seconds.
 - Better version: their own words, rewritten so they can say it as-is in the real conversation.
 - Follow-up: the demo person's next question, in character, one question only.
 
@@ -17,7 +17,7 @@ Ignore: everything else about Instinct
 Scorecard: 
 Fire emoji for "Confidence" - followed by score
 Heart emoji for "Warmth" - score
-Stars emoji for Charisma - score
+Stars emoji for Persuasion - score
 Text message emoji for Clarity - score 
 
 ## 3. Message rules (WhatsApp sets font and colour)
@@ -45,7 +45,7 @@ Options: 1 Ask for a raise · 2 Explain a work delay · 3 Speak up at a party ·
 - One message does one job.
 - The demo person always stays in character; scores come in a separate message.
 - Never vague: every piece of feedback comes with the exact words to say.
-Scorecard: keep overall, Clarity, Confidence, Charisma, Warmth in order with existing bold and emojis. Add one Heard: line after Warmth, then scored from: audio. Better version remains a separate message.
+Scorecard: keep overall, Clarity, Confidence, Persuasion, Warmth in order with existing bold and emojis. Add one Heard: line after Warmth, then scored from: audio. Better version remains a separate message.
 
 Missing-fact clarification: vague goals receive `What specific goal had we agreed on?`; vague outcomes receive `What specific outcome did you deliver?`. Keep one question per message and stay in the manager's character.
 

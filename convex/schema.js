@@ -34,7 +34,9 @@ export default defineSchema({
     situation: v.literal("raise"),
     clarity: v.number(),
     confidence: v.number(),
-    charisma: v.number(),
+    persuasion: v.optional(v.number()),
+    // Retain historical records written before the category rename.
+    charisma: v.optional(v.number()),
     warmth: v.number(),
     overall: v.number(),
     rewrite: v.string(),

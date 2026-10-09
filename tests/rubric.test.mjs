@@ -5,7 +5,7 @@ import { parsePracticeResult } from '../convex/lib/facts.js';
 import { formatScore } from '../convex/lib/rules.js';
 const observations = {fillers:3,longPauses:1,hedges:2,askEnding:'dropped',earlyAsk:true,unclearPhrases:0,restarts:1,supportingFacts:3,linkedAsk:true,emphasizedPoints:2,respectfulPhrases:1,collaborativePhrases:1,hostilePhrases:0};
 test('fixed audio observations give repeatable scores and exact deductions', () => {
- const expected = {confidence:84,clarity:95,charisma:98,warmth:90};
+ const expected = {confidence:84,clarity:95,persuasion:98,warmth:90};
  for(let i=0;i<3;i++) assert.deepEqual(scoreObservations(observations).scores,expected);
  assert.equal(scoreObservations({...observations,askEnding:'rose'}).scores.confidence,79);
  assert.equal(scoreObservations({...observations,fillers:200}).scores.confidence,0);
@@ -13,7 +13,7 @@ test('fixed audio observations give repeatable scores and exact deductions', () 
 });
 test('invalid or missing observations reject instead of accepting model scores', () => {
  for(const o of [null,{}, {...observations,fillers:1.5},{...observations,hedges:-1},{...observations,earlyAsk:'yes'},{...observations,askEnding:'guessed'}]) assert.throws(()=>scoreObservations(o),/invalid_scores/);
- const payload={payRequest:'10%',agreedGoals:'sales goal',deliveredOutcome:'met goal',expectations:'met',rewrite:'I am asking for a 10% raise.',confidence:99,clarity:99,charisma:99,warmth:99};
+ const payload={payRequest:'10%',agreedGoals:'sales goal',deliveredOutcome:'met goal',expectations:'met',rewrite:'I am asking for a 10% raise.',confidence:99,clarity:99,persuasion:99,warmth:99};
  assert.throws(()=>parsePracticeResult(JSON.stringify(payload),undefined,true),/invalid_scores/);
  const result=parsePracticeResult(JSON.stringify({...payload,observations}),undefined,true);
  assert.equal(result.score.confidence,84);

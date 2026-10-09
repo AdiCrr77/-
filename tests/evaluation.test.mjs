@@ -6,7 +6,7 @@ import { emptyFacts } from "../convex/lib/facts.js";
 const valid = {
   unreadable: false,
   facts: { payRequest: "10%", agreedGoals: "Finish by Friday", deliveredOutcome: "Finished by Friday", expectations: "Met expectations" },
-  clarity: 80, confidence: 70, charisma: 75, warmth: 85,
+  clarity: 80, confidence: 70, persuasion: 75, warmth: 85,
   rewrite: "A synthetic raise request using the supplied facts.",
 };
 

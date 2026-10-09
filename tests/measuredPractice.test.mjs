@@ -1,3 +1,4 @@
+import {checkedFeedback} from './fixtures/feedback.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateMeasuredPractice } from '../convex/lib/evaluation.js';
@@ -5,7 +6,7 @@ import { measureWords } from '../convex/lib/confidence.js';
 import { formatScore } from '../convex/lib/rules.js';
 import { formatScoringDiagnostic } from '../convex/lib/scoringDiagnostic.js';
 const measurement={transcript:"I request a 12% raise. Our goal was 30 tickets. Resolved 40 tickets. synthetic evidence 1 synthetic evidence 2 synthetic evidence 3 synthetic evidence 4",...measureWords([{word:'um',start:0,end:.3},{word:'uh',start:2.5,end:2.8},{word:'maybe',start:2.8,end:3}],4)};
-const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'Resolved 40 tickets',e:'Exceeded the target',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],k:75,w:85},r:'I request a 12% raise after exceeding our ticket target.'};
+const output={u:false,p:'12%',g:'Resolve 30 tickets',d:'Resolved 40 tickets',e:'Exceeded the target',v:{c:[{p:true,e:'raise'},{p:true,e:'goal'},{p:true,e:'raise'},{p:false,e:'repeated'}],...checkedFeedback(75,85)},r:'I request a 12% raise after exceeding our ticket target.'};
 test('Clarity reason survives feedback parsing into local diagnostics but stays out of score, rewrite and WhatsApp',async()=>{
  const reason='4: "repeated"';
  const result=await evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{...output.v,r:reason}}),reserveRetry:async()=>assert.fail('no retry needed')});
@@ -28,9 +29,9 @@ test('local Confidence wins over model scores and builds the exact seven-line sc
  const result=await evaluateMeasuredPractice({transcribe:async()=>{calls.push('transcribe');return measurement;},reserveFeedback:async()=>{calls.push('reserve');return true;},evaluate:async()=>{calls.push('feedback');return JSON.stringify({...output,confidence:100,heard:'invented'});},reserveRetry:async()=>assert.fail('retry not needed')});
  assert.deepEqual(calls,['transcribe','reserve','feedback']);
  assert.equal(result.score.confidence,80);
- assert.equal(result.score.overall,79);
+ assert.equal(result.score.overall,76);
  const [card,rewrite]=formatScore(result.score,'audio',result.heard);
- assert.equal(card,'*Overall 79/100*\n💬 Clarity 75/100\n🔥 Confidence 80/100\n✨ Charisma 75/100\n❤️ Warmth 85/100\nHeard: 2 fillers, 1 long pause, 1 hedge\nscored from: audio');
+ assert.equal(card,'*Overall 76/100*\n💬 Clarity 75/100\n🔥 Confidence 80/100\n✨ Persuasion 75/100\n❤️ Warmth 75/100\nHeard: 2 fillers, 1 long pause, 1 hedge\nscored from: audio');
  assert.equal(rewrite,'*Better version*\n'+output.r);
 });
 test('a failed transcription or quota reservation prevents feedback, never substitutes perfect Confidence',async()=>{
@@ -47,7 +48,7 @@ test('feedback retry reuses the same transcription and measurements',async()=>{
 });
 
 test('missing or invalid AI feedback scores still reject despite successful Confidence measurement',async()=>{
- for (const v of [{c:null,k:75,w:85},{c:101,k:75,w:85},{c:'80',k:75,w:85}]) {
+ for (const v of [{c:null,...checkedFeedback(75,85)},{c:101,...checkedFeedback(75,85)},{c:'80',...checkedFeedback(75,85)}]) {
  await assert.rejects(evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v}),reserveRetry:async()=>true,report:()=>{}}),/invalid_scores/);
  }
 });
@@ -78,7 +79,7 @@ test('obsolete round prevents feedback after a successful transcription',async()
  test('repeated shortfall wording fails check 4 only and produces Clarity 75',async()=>{
  const words='we have not achieved that goal. We fell short a little bit';
  const c=[{p:true,e:'12%'},{p:true,e:'Resolved 40 tickets'},{p:true,e:'12%'},{p:false,e:words}];
- const result=await evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{c,k:75,w:85,r:'ignored model reason'}}),reserveRetry:async()=>false});
+ const result=await evaluateMeasuredPractice({transcribe:async()=>measurement,reserveFeedback:async()=>true,evaluate:async()=>JSON.stringify({...output,v:{c,...checkedFeedback(75,85),r:'ignored model reason'}}),reserveRetry:async()=>false});
  assert.equal(result.score.clarity,75);
  assert.equal(result.clarityReason,`4: "${words}"`);
  });
@@ -92,4 +93,21 @@ test('Clarity deducts exactly 25 for each failed check and lists every failure i
  assert.equal(result.clarityReason,failed.length?failed.join('; '):'All four checks passed.');
  assert.equal(result.score.confidence,80);
  }
+});
+
+test('empty text-model audioFeedback passes round validation and scorecard uses measured counts',async()=>{
+ const note={messageId:'synthetic-empty-feedback',transcript:measurement.transcript,fillers:2,longPauses:1,hedges:1};
+ const result=await evaluateMeasuredPractice({
+  transcribe:async()=>measurement,
+  recordTranscript:async()=>({accepted:true,notes:[note],askedFacts:[]}),
+  reserveFeedback:async()=>true,
+  evaluate:async()=>JSON.stringify({...output,n:''}),
+  reserveRetry:async()=>assert.fail('empty n must not trigger a retry'),
+  report:()=>{},
+ });
+ assert.equal(result.audioFeedback,'');
+ assert.equal(result.score.confidence,80);
+ const [card]=formatScore(result.score,'audio',result.heard);
+ assert.equal(card.split('\n').length,7);
+ assert.ok(card.includes('Heard: 2 fillers, 1 long pause, 1 hedge'));
 });

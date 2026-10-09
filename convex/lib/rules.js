@@ -40,7 +40,8 @@ export function validateRewrite(rewrite) {
   else if (rewrite.length > 2000) reason = "length";
   else if (/=|\b(?:payRequest|agreedGoals|deliveredOutcome|expectations)\b/iu.test(rewrite)) reason = "fields";
   else if (/[\p{Extended_Pictographic}*]/u.test(rewrite)) reason = "format";
-  else if (rewrite.trim().split(/\s+/u).length >= 60) reason = "word_limit";
+  else if (rewrite.replace(/\[[^\[\]]*\]/gu, '').trim().split(/\s+/u).filter(Boolean).length >= 60) reason = "word_limit";
+  else if (/\b(?:deserve|owed|i\s+expect)\b/iu.test(rewrite)) reason = "entitlement";
   else if (/i wanted to take a moment|\bleverag\w*|\balign\w*/iu.test(rewrite)) reason = "corporate_phrase";
   if (!reason) {
     // A decimal point is part of the amount, not a sentence boundary.
@@ -52,6 +53,9 @@ export function validateRewrite(rewrite) {
         .map(clause => clause.toLowerCase().replace(/[’‘]/gu, "'").replace(/[^\p{L}\p{N}'%]+/gu, ' ').trim())
         .filter(Boolean);
       if (new Set(clauses).size !== clauses.length) reason = "repetition";
+      else if (clauses.some((clause,index) =>
+        /\b(?:(?:fell|fall|falling|fallen) short|(?:miss|missed|missing) (?:the |our |a |agreed )?target)\b/u.test(clause) &&
+        /\b(?:because|that's why)\b/u.test(clauses[index+1] ?? ''))) reason = "shortfall_link";
     }
   }
   if (reason) {
@@ -62,11 +66,11 @@ export function validateRewrite(rewrite) {
 }
 // Missing feedback is a validation failure, never a numeric default.
 export function validateFeedbackScores(result) {
-  const names = ['charisma', 'warmth'];
+  const names = ['persuasion', 'warmth'];
   if (!result || names.some(name => typeof result[name] !== 'number' ||
     !Number.isFinite(result[name]) || result[name] < 0 || result[name] > 100)) {
     const error = new Error('invalid_scores');
-    error.feedbackScores = {charisma:result?.charisma,warmth:result?.warmth};
+    error.feedbackScores = {persuasion:result?.persuasion,warmth:result?.warmth};
     error.diagnosticCode = !result || names.some(name => result[name] == null)
       ? 'invalid_scores_missing'
       : names.some(name => typeof result[name] !== 'number')
@@ -102,7 +106,7 @@ export function parseScore(text) {
   }
   if (result?.unreadable === true) throw new Error("unreadable");
   validateFeedbackScores(result);
-  const names = ["clarity", "confidence", "charisma", "warmth"];
+  const names = ["clarity", "confidence", "persuasion", "warmth"];
   if (
     !result ||
     names.some(
@@ -133,7 +137,7 @@ export function formatScore(score, scoredFrom, heard) {
   validateFeedbackScores(score);
   validateRewrite(score.rewrite);
   return [
-    `*Overall ${score.overall}/100*\n💬 Clarity ${score.clarity}/100\n🔥 Confidence ${score.confidence}/100\n✨ Charisma ${score.charisma}/100\n❤️ Warmth ${score.warmth}/100${heard ? `\n${heard}` : ""}\nscored from: ${scoredFrom}`,
+    `*Overall ${score.overall}/100*\n💬 Clarity ${score.clarity}/100\n🔥 Confidence ${score.confidence}/100\n✨ Persuasion ${score.persuasion}/100\n❤️ Warmth ${score.warmth}/100${heard ? `\n${heard}` : ""}\nscored from: ${scoredFrom}`,
     `*Better version*\n${score.rewrite}`,
   ];
 }

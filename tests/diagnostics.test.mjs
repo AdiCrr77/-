@@ -44,7 +44,7 @@ test("invalid score diagnostics distinguish missing, wrong type and range withou
   for (const [confidence, code] of [[null, "missing"], ["80", "type"], [101, "range"]]) {
     const logs = [];
     try {
-      parseScore(JSON.stringify({ clarity: 80, confidence, charisma: 80, warmth: 80, rewrite: "Synthetic private answer" }));
+      parseScore(JSON.stringify({ clarity: 80, confidence, persuasion: 80, warmth: 80, rewrite: "Synthetic private answer" }));
       assert.fail("Invalid score accepted");
     } catch (error) {
       assert.equal(error.message, "invalid_scores");
@@ -57,7 +57,7 @@ test("invalid score diagnostics distinguish missing, wrong type and range withou
 test("rewrite diagnostics identify the failed rule without revealing the rewrite", () => {
   for (const [rewrite, code] of [[null, "missing"], [" ", "empty"], ["x".repeat(2001), "length"], ["*Synthetic private answer*", "format"]]) {
     const logs = [];
-    assert.throws(() => parseScore(JSON.stringify({ clarity: 80, confidence: 80, charisma: 80, warmth: 80, rewrite })), (error) => {
+    assert.throws(() => parseScore(JSON.stringify({ clarity: 80, confidence: 80, persuasion: 80, warmth: 80, rewrite })), (error) => {
       assert.equal(error.message, "invalid_rewrite");
       reportDiagnostic(error, (line) => logs.push(line));
       return true;

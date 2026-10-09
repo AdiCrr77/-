@@ -13,10 +13,14 @@ export function formatScoringDiagnostic(diagnostic, secrets=[]) {
   const projected={
     fullTranscript:diagnostic.fullTranscript,duration:diagnostic.duration,words,
     biggestGaps:diagnostic.biggestGaps,fillers:diagnostic.fillers,longPauses:diagnostic.longPauses,hedges:diagnostic.hedges,
+    ...Object.fromEntries(['persuasionChecks','warmthChecks'].filter(name=>Array.isArray(diagnostic[name])).map(name=>[name,diagnostic[name].map(check=>({
+      check:scalar(check.check),name:scalar(check.name),aiPass:scalar(check.aiPass),quote:scalar(check.quote),quoteFound:scalar(check.quoteFound),pass:scalar(check.pass),...(check.reason?{reason:scalar(check.reason)}:{}),
+    }))])),
+    ...(diagnostic.warmthInsult ? {warmthInsult:{quote:scalar(diagnostic.warmthInsult.quote),quoteFound:scalar(diagnostic.warmthInsult.quoteFound),applied:scalar(diagnostic.warmthInsult.applied)}} : {}),
     ...(Array.isArray(diagnostic.clarityChecks) ? {clarityChecks:diagnostic.clarityChecks.map(check=>({
       check:scalar(check.check),aiPass:scalar(check.aiPass),quote:scalar(check.quote),quoteFound:scalar(check.quoteFound),pass:scalar(check.pass),
     }))} : {}),
-    ...(Array.isArray(diagnostic.feedbackScoreRejections) ? {feedbackScoreRejections:diagnostic.feedbackScoreRejections.map(scores=>({charisma:scoreValue(scores.charisma),warmth:scoreValue(scores.warmth)}))} : {}),
+    ...(Array.isArray(diagnostic.feedbackScoreRejections) ? {feedbackScoreRejections:diagnostic.feedbackScoreRejections.map(scores=>({persuasion:scoreValue(scores.persuasion),warmth:scoreValue(scores.warmth)}))} : {}),
     ...(Array.isArray(diagnostic.rewriteRejections) ? {rewriteRejections:diagnostic.rewriteRejections.map(scalar)} : {}),
     ...(typeof diagnostic.r === 'string' ? {r:diagnostic.r} : {}),
   };

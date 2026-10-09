@@ -44,7 +44,7 @@ export const scoreTranscript = internalAction({
     // Include the exact provider text without reformatting it, even if invalid.
     try {
       const parsed=JSON.parse(raw);
-      const result=expandResult({u:false,v:{c:parsed.c,k:0,w:0}},[transcript]);
+      const result=expandResult({u:false,v:{c:parsed.c,k:Object.fromEntries([1,2,3,4].map(index=>['P'+index,{pass:false,quote:'MISSING'}])),w:Object.fromEntries([1,2,3,4].map(index=>['W'+index,{pass:false,quote:'MISSING'}])),i:''}},[transcript]);
       return JSON.stringify({raw,clarity:result.clarity,checks:result.clarityChecks});
     } catch {
       return JSON.stringify({raw,clarity:null,error:'invalid_clarity_checks'});

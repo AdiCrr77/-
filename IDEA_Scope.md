@@ -35,7 +35,7 @@ Would they pay? (what exists today that people pay for): They would pay 49/- (sp
 PRODUCT
 Onboarding (how a first-time user feels the value fastest): open the chat, pick a situation, answer the demo person's first question with one voice note, get a score and a better version. No login, no name.
 The core loop (user stories): Just before a high stakes conversation, I want to communicate the right thing, so that I don't end up losing the conversation.
-The AI-first part: scores the voice note on Clarity, Confidence, Charisma and Warmth (each out of 100, overall = average), writes a better version of their own words, and asks follow-ups as the demo person until they pass 85
+The AI-first part: scores the voice note on Clarity, Confidence, Persuasion and Warmth (each out of 100, overall = average), writes a better version of their own words, and asks follow-ups as the demo person until they pass 85
 
 MARKET
 Tailwinds: Quippy is already funded by YC

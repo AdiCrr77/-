@@ -149,13 +149,13 @@ export const reserveFeedback = (ctx, identity) => reserveAdditional(ctx, identit
 
 // Persist a successful transcription before feedback, so feedback failures do not
 // discard speech already supplied. Stale generations cannot append to a new round.
-export async function recordNote(ctx, {phone,messageId,transcript,fillers,longPauses,hedges}) {
+export async function recordNote(ctx, {phone,messageId,transcript,fullTranscript,fillers,longPauses,hedges}) {
   const delivery=await ctx.db.query('deliveries').withIndex('by_phone_message',q=>q.eq('phone',phone).eq('messageId',messageId)).unique();
   const session=await ctx.db.query('sessions').withIndex('by_phone',q=>q.eq('phone',phone)).unique();
   if(!delivery || delivery.status!=='processing' || !session || session.generation!==delivery.generation) return {accepted:false,notes:[],askedFacts:[]};
   if(typeof transcript!=='string'||!transcript.trim()||[fillers,longPauses,hedges].some(n=>!Number.isSafeInteger(n)||n<0)) throw new Error('invalid_transcription');
   const notes=session.notes ?? [];
-  if(!notes.some(note=>note.messageId===messageId)) notes.push({messageId,transcript,fillers,longPauses,hedges});
+  if(!notes.some(note=>note.messageId===messageId)) notes.push({messageId,transcript,...(typeof fullTranscript==='string'?{fullTranscript}:{}),fillers,longPauses,hedges});
   await ctx.db.patch(session._id,{notes});
   return {accepted:true,notes,askedFacts:session.askedFacts ?? []};
 }

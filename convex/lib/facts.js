@@ -39,7 +39,7 @@ export function parsePracticeResult(text, prior = emptyFacts(), requireObservati
   if(round && !missing) result.rewrite=ensureRewriteGaps(result.rewrite,missingFacts);
   let audioFeedback;
   if(round) {
-    if(typeof result.audioFeedback !== 'string' || !result.audioFeedback.trim() || result.audioFeedback.length>400) throw new Error('invalid_response');
+    if(typeof result.audioFeedback !== 'string' || result.audioFeedback.length>400) throw new Error('invalid_response');
     audioFeedback=result.audioFeedback.trim();
   }
   text = JSON.stringify(result);
@@ -55,5 +55,5 @@ export function parsePracticeResult(text, prior = emptyFacts(), requireObservati
     text = JSON.stringify(result);
     heard = evaluated.heard;
   }
-  return { ...(result.clarityChecks ? {clarityChecks:result.clarityChecks} : {}), ...(clarityReason !== undefined ? {clarityReason:clarityReason.trim()} : {}), ...(round ? {askedFact:missing ?? null, audioFeedback} : {}), ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
+  return { ...(result.persuasionChecks ? {persuasionChecks:result.persuasionChecks,warmthChecks:result.warmthChecks,warmthInsult:result.warmthInsult} : {}), ...(result.clarityChecks ? {clarityChecks:result.clarityChecks} : {}), ...(clarityReason !== undefined ? {clarityReason:clarityReason.trim()} : {}), ...(round ? {askedFact:missing ?? null, audioFeedback} : {}), ...(heard ? { heard } : {}), facts, question: missing ? FACT_QUESTIONS[missing] : null, score: missing ? null : parseScore(text) };
 }

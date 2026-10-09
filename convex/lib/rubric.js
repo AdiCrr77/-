@@ -40,7 +40,7 @@ export function scoreObservations(o) {
   const scores = {
     confidence: clamp(100 - 2*o.fillers - 4*o.longPauses - 3*o.hedges - (o.askEnding === "rose" ? 5 : o.askEnding === "unclear" ? 5 : 0)),
     clarity: clamp(100 - (o.earlyAsk ? 0 : 20) - 5*o.unclearPhrases - 3*o.restarts - 2*o.longPauses),
-    charisma: clamp(40 + 10*o.supportingFacts + (o.linkedAsk ? 20 : 0) + 5*o.emphasizedPoints - 2*o.restarts),
+    persuasion: clamp(40 + 10*o.supportingFacts + (o.linkedAsk ? 20 : 0) + 5*o.emphasizedPoints - 2*o.restarts),
     warmth: clamp(80 + 5*o.respectfulPhrases + 5*o.collaborativePhrases - 20*o.hostilePhrases),
   };
   const heard = `Heard: ${o.fillers} fillers, ${o.longPauses} long pauses, ${o.hedges} hedges, ask ending ${o.askEnding}; early ask ${o.earlyAsk ? "yes" : "no"}, ${o.unclearPhrases} unclear phrases, ${o.restarts} restarts; ${o.supportingFacts} supporting facts, linked ask ${o.linkedAsk ? "yes" : "no"}, ${o.emphasizedPoints} emphasized points; ${o.respectfulPhrases} respectful, ${o.collaborativePhrases} collaborative, ${o.hostilePhrases} hostile phrases`;

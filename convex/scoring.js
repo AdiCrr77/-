@@ -1,5 +1,4 @@
 "use node";
-import WebSocket from "ws";
 import { internalAction } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
 import { v } from "convex/values";
@@ -10,7 +9,7 @@ import {
   UNREADABLE,
   BUSY,
 } from "./lib/rules.js";
-import { scoreAudio } from "./lib/realtime.js";
+import { scoreText } from "./lib/textScoring.js";
 import { reportDiagnostic, audioFailureCode, reportRejectedResponse } from "./lib/diagnostics.js";
 import { formatScoringDiagnostic } from "./lib/scoringDiagnostic.js";
 import { transcribeAudio } from "./lib/transcription.js";
@@ -57,6 +56,7 @@ export const score = internalAction({
       let scoringDiagnostic;
       let resultClarityReason;
       let clarityChecks;
+      let feedbackDiagnostic={};
       let transcriptionDiagnostic;
       const rewriteRejections=[];
       const feedbackScoreRejections=[];
@@ -68,9 +68,9 @@ export const score = internalAction({
             scoringDiagnostic=formatScoringDiagnostic(measured.scoringDiagnostic,[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
             return measured;
           },
-          recordTranscript: ({transcript,fillers,longPauses,hedges}) => ctx.runMutation(internal.practice.recordNote,{...identity,transcript,fillers,longPauses,hedges}),
+          recordTranscript: ({transcript,fillers,longPauses,hedges}) => ctx.runMutation(internal.practice.recordNote,{...identity,transcript,...(typeof transcriptionDiagnostic?.fullTranscript==='string'?{fullTranscript:transcriptionDiagnostic.fullTranscript}:{}),fillers,longPauses,hedges}),
           reserveFeedback: () => ctx.runMutation(internal.practice.reserveFeedback, identity),
-          evaluate: (round) => scoreAudio(WebSocket, process.env.OPENAI_API_KEY, bytes, 30000, { facts: claim.facts, currentQuestion: claim.currentQuestion, round }),
+          evaluate: (round) => scoreText(process.env.OPENAI_API_KEY, { facts: claim.facts, currentQuestion: claim.currentQuestion, round }),
           reserveRetry: () => ctx.runMutation(internal.practice.reserveRetry, identity),
           onFeedbackScoresRejected: scores => {feedbackScoreRejections.push(scores);},
           onRewriteRejected: reason => { rewriteRejections.push(reason); },
@@ -79,7 +79,8 @@ export const score = internalAction({
         });
         resultClarityReason=result.clarityReason;
         clarityChecks=result.clarityChecks;
-        if (result.clarityReason !== undefined) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,clarityChecks,r:result.clarityReason},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
+        feedbackDiagnostic={persuasionChecks:result.persuasionChecks,warmthChecks:result.warmthChecks,warmthInsult:result.warmthInsult};
+        if (result.clarityReason !== undefined) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,...feedbackDiagnostic,clarityChecks,r:result.clarityReason},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
         score = result.score;
         facts = result.facts;
         question = result.question;
@@ -92,7 +93,7 @@ export const score = internalAction({
         discardNote=error.message==='unreadable';
         messages = [providerMessage(error.message)];
       }
-      if (transcriptionDiagnostic && (rewriteRejections.length || feedbackScoreRejections.length)) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,clarityChecks,...(resultClarityReason !== undefined ? {r:resultClarityReason} : {}),rewriteRejections,feedbackScoreRejections},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
+      if (transcriptionDiagnostic && (rewriteRejections.length || feedbackScoreRejections.length)) scoringDiagnostic=formatScoringDiagnostic({...transcriptionDiagnostic,...feedbackDiagnostic,clarityChecks,...(resultClarityReason !== undefined ? {r:resultClarityReason} : {}),rewriteRejections,feedbackScoreRejections},[process.env.OPENAI_API_KEY,process.env.PRACTICE_BRIDGE_TOKEN]);
       await ctx.runMutation(internal.practice.finish, {
         ...identity,
         messages,
