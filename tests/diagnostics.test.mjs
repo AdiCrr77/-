@@ -5,7 +5,18 @@ import {
   reportDiagnostic,
   audioFailureCode,
   reportRejectedResponse,
+  rewriteRejectionRule,
 } from "../convex/lib/diagnostics.js";
+
+test('rewrite rejection names are allowlisted before logging or practice-window transport',()=>{
+ for(const name of ['repeated_ask_amount','missing_delivery','entitlement','unnamed_reference','opening_question','opening_phrase','repetition','shortfall_link']) {
+  const error=Object.assign(new Error('invalid_rewrite'),{diagnosticCode:`invalid_rewrite_${name}`});
+  assert.equal(rewriteRejectionRule(error),`invalid_rewrite_${name}`);
+  const logs=[];reportDiagnostic(error,line=>logs.push(line));
+  assert.deepEqual(logs,[`practice_scoring_error code=invalid_rewrite_${name}`]);
+ }
+ assert.equal(rewriteRejectionRule({diagnosticCode:'invalid_rewrite_private-answer sk-synthetic-secret 15555550123'}),'invalid_rewrite');
+});
 
 test("requested rejected-response text is logged intact except keys and audio payloads", () => {
   const logs = [];

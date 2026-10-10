@@ -1,13 +1,15 @@
 import { spawn, spawnSync } from "node:child_process";
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm, readFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import {parseAllowedNumbers, phoneFromJid, maskPhoneNumbers, bridgeAccessEnvironment} from './practice-access.mjs';
+import {createInterface} from 'node:readline';
 import { createWorker, poll } from "./worker.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {}
+try {process.loadEnvFile(".env");} catch {}
+try {process.loadEnvFile(".env.local");} catch {}
+const allowedNumbers=parseAllowedNumbers(process.env.PRACTICE_ALLOWED_NUMBERS);
 const site =
   process.env.CONVEX_SITE_URL ??
   process.env.VITE_CONVEX_URL?.replace(/\.convex\.cloud$/, ".convex.site");
@@ -26,6 +28,11 @@ const session =
   process.env.HERMES_PRACTICE_SESSION ??
   path.join(homedir(), ".hermes/whatsapp/session");
 await access(bridgeFile);
+let account;
+try {account=JSON.parse(await readFile(path.join(session,"creds.json"),"utf8")).me;} catch {}
+const selfNumber=phoneFromJid(account?.id);
+const selfLid=account?.lid?.replace(/:\d+@/,"@");
+const accessEnvironment=bridgeAccessEnvironment(allowedNumbers,selfNumber);
 const bundledFfmpeg = path.join(
   homedir(),
   ".hermes/tools/ffmpeg-9.0.1-linux-x64/bin/ffmpeg",
@@ -60,10 +67,10 @@ const child = spawn(
   [bridgeFile, "--port", "3001", "--session", session],
   {
     // Hermes may print QR codes, but no inbound event/debug logging is enabled.
-    stdio: ["ignore", "inherit", "inherit"],
+    stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
-      WHATSAPP_MODE: "self-chat",
+      ...accessEnvironment,
       WHATSAPP_REPLY_PREFIX: "",
       WHATSAPP_DEBUG: "false",
       WHATSAPP_SEND_READ_RECEIPTS: "false",
@@ -73,6 +80,9 @@ const child = spawn(
     },
   },
 );
+for(const [stream,target] of [[child.stdout,process.stdout],[child.stderr,process.stderr]]) {
+  createInterface({input:stream}).on("line",line=>target.write(maskPhoneNumbers(line)+"\n"));
+}
 const exited = new Promise((resolve) => {
   child.once("exit", resolve);
   child.once("error", resolve);
@@ -103,7 +113,7 @@ try {
     "Practice connected. On your phone, open Message yourself, send 1, then a voice note under 90 seconds.",
   );
   await poll(
-    createWorker({ site, token, bridge, cacheDir, ffmpeg }),
+    createWorker({ site, token, bridge, cacheDir, ffmpeg, allowedNumbers:selfNumber?allowedNumbers:null, selfNumber, selfLid }),
     bridge,
     controller.signal,
   );

@@ -6,7 +6,7 @@ import {FEEDBACK_RUBRICS,FEEDBACK_EVIDENCE_RULES,WARMTH_INSULT_CAP} from '../con
 import {feedbackInstructions} from '../convex/lib/feedbackProtocol.js';
 import {formatScoringDiagnostic} from '../convex/lib/scoringDiagnostic.js';
 // Synthetic fixtures use short tuples for readability; the wire is fixed-key JSON.
-const keyed=(checks,prefix)=>Array.isArray(checks)?Object.fromEntries(checks.map((check,index)=>[`${prefix}${index+1}`,{pass:check.p,quote:check.e}])):checks;
+const keyed=(checks,prefix)=>Array.isArray(checks)?Object.fromEntries(checks.map((check,index)=>[`${prefix}${index+1}`,{...(prefix==='W'?{level:check.p?'clear':'missing'}:{pass:check.p}),quote:check.e}])):checks;
 const scoreFeedbackChecks=(feedback,transcripts,situation)=>scoreKeyedFeedbackChecks({...feedback,k:keyed(feedback.k,'P'),w:keyed(feedback.w,'W')},transcripts,situation);
 
 
@@ -111,7 +111,7 @@ test('format instructions specify four checks per sibling array and MISSING omis
 
 test('fixed judgment keys and pass/quote fields are required; omissions, aliases and extras reject',()=>{
  const c=Object.fromEntries([1,2,3,4].map(index=>[`P${index}`,{pass:false,quote:'MISSING'}]));
- const w=Object.fromEntries([1,2,3,4].map(index=>[`W${index}`,{pass:false,quote:'MISSING'}]));
+ const w=Object.fromEntries([1,2,3,4].map(index=>[`W${index}`,{level:'missing',quote:'MISSING'}]));
  const score=feedback=>scoreKeyedFeedbackChecks(feedback,['Synthetic answer.']);
  assert.equal(score({k:c,w,i:''}).persuasion,0);
  const {P4,...missing}=c;
@@ -128,8 +128,8 @@ test('function JSON schema has all eight fixed required keys and forbids additio
  assert.equal(schema.type,'object');assert.equal(schema.additionalProperties,false);
  assert.deepEqual(schema.required,[1,2,3,4].map(index=>`${prefix}${index}`));
  for(const check of Object.values(schema.properties)){
- assert.deepEqual(check.required,['pass','quote']);assert.equal(check.additionalProperties,false);
- assert.equal(check.properties.pass.type,'boolean');assert.equal(check.properties.quote.type,'string');
+ assert.deepEqual(check.required,[prefix==='W'?'level':'pass','quote']);assert.equal(check.additionalProperties,false);
+ if(prefix==='W')assert.deepEqual(check.properties.level.enum,['clear','partial','missing']);else assert.equal(check.properties.pass.type,'boolean');assert.equal(check.properties.quote.type,'string');
  }
  }
  assert.equal(tool.strict,undefined,'provider strict mode is unsupported on this model');

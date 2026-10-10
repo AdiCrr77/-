@@ -33,6 +33,20 @@ export function reserveCall(timestamps, now) {
   const active = timestamps.filter((t) => t > now - HOUR);
   return active.length >= 30 ? null : [...active, now];
 }
+export function isRaiseAsk(sentence) {
+  return /\b(?:i(?:['’]d| would) (?:like|appreciate)|i (?:want|request|am (?:asking|requesting|seeking|looking for))|i['’]m (?:asking|requesting|seeking|looking for)|my (?:ask|request))\b/iu.test(sentence) ||
+    /^\s*(?:a\s+)?\d+(?:\.\d+)?\s*(?:%|percent)\s*(?:pay )?(?:raise|hike|increase)\b/iu.test(sentence) ||
+    /\b(?:could|can|would|will)\b[^.!?]*\d+(?:\.\d+)?\s*(?:%|percent)[^.!?]*\b(?:raise|hike|increase)\b/iu.test(sentence);
+}
+function repeatedAskAmount(rewrite) {
+  const clauses=rewrite.replace(/\[[^\]]*\]/gu,'').split(/\.(?!\d)|[!?;。！？]/u);
+  const amounts=clauses.filter(isRaiseAsk).flatMap(clause=>{
+    const ask=clause.split(/\bbased on\b/iu)[0];
+    const amounts=ask.match(/\d+(?:\.\d+)?(?:\s*(?:to|[-–])\s*\d+(?:\.\d+)?)?\s*(?:%|percent)|(?:[$₹£€]\s*\d[\d,]*(?:\.\d+)?)/giu)??[];
+    return amounts.map(amount=>amount.toLowerCase().replace(/percent/gu,'%').replace(/\s*to\s*|–/gu,'-').replace(/\s|,/gu,''));
+  });
+  return new Set(amounts).size!==amounts.length;
+}
 export function validateRewrite(rewrite) {
   let reason;
   if (typeof rewrite !== "string") reason = "missing";
@@ -40,12 +54,16 @@ export function validateRewrite(rewrite) {
   else if (rewrite.length > 2000) reason = "length";
   else if (/=|\b(?:payRequest|agreedGoals|deliveredOutcome|expectations)\b/iu.test(rewrite)) reason = "fields";
   else if (/[\p{Extended_Pictographic}*]/u.test(rewrite)) reason = "format";
+  else if (repeatedAskAmount(rewrite)) reason = "repeated_ask_amount";
   else if (rewrite.replace(/\[[^\[\]]*\]/gu, '').trim().split(/\s+/u).filter(Boolean).length >= 60) reason = "word_limit";
   else if (/\b(?:deserve|owed|i\s+expect)\b/iu.test(rewrite)) reason = "entitlement";
+  else if (/\b(?:this|these)\s*(?:[.,;!?]|$)|\b(?:this|these)\s+(?:is|was|are|were|means|shows|supports)\b/iu.test(rewrite)) reason = "unnamed_reference";
   else if (/i wanted to take a moment|\bleverag\w*|\balign\w*/iu.test(rewrite)) reason = "corporate_phrase";
   if (!reason) {
     // A decimal point is part of the amount, not a sentence boundary.
-    const firstSentence = rewrite.trim().match(/^[\s\S]*?(?:[?!。！？]|\.(?!\d)|$)/u)[0];
+    const spoken=rewrite.replace(/\[[^\]]*\]/gu,'').trim();
+    const sentences=spoken.match(/[\s\S]*?(?:[?!。！？]|\.(?!\d)|$)/gu)?.filter(sentence=>sentence.trim())??[];
+    const firstSentence = sentences.find(isRaiseAsk) ?? sentences[0] ?? '';
     if (/[?？]/u.test(firstSentence) || /^(?:["“'‘]\s*)?(?:could|can|would|will|do|does|did|is|are|should|may|might)\b/iu.test(firstSentence)) reason = "opening_question";
     else if (/\b(?:could\s+we|can\s+we|would\s+it\s+be\s+possible|i\s+was\s+wondering|revisit|maybe|just|i\s+think|hoping)\b/iu.test(firstSentence)) reason = "opening_phrase";
     else {

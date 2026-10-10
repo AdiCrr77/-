@@ -14,7 +14,7 @@ export function formatScoringDiagnostic(diagnostic, secrets=[]) {
     fullTranscript:diagnostic.fullTranscript,duration:diagnostic.duration,words,
     biggestGaps:diagnostic.biggestGaps,fillers:diagnostic.fillers,longPauses:diagnostic.longPauses,hedges:diagnostic.hedges,
     ...Object.fromEntries(['persuasionChecks','warmthChecks'].filter(name=>Array.isArray(diagnostic[name])).map(name=>[name,diagnostic[name].map(check=>({
-      check:scalar(check.check),name:scalar(check.name),aiPass:scalar(check.aiPass),quote:scalar(check.quote),quoteFound:scalar(check.quoteFound),pass:scalar(check.pass),...(check.reason?{reason:scalar(check.reason)}:{}),
+      check:scalar(check.check),name:scalar(check.name),aiPass:scalar(check.aiPass),quote:scalar(check.quote),quoteFound:scalar(check.quoteFound),pass:scalar(check.pass),...(check.level?{aiLevel:scalar(check.aiLevel),level:scalar(check.level),points:scalar(check.points)}:{}),...(check.reason?{reason:scalar(check.reason)}:{}),
     }))])),
     ...(diagnostic.warmthInsult ? {warmthInsult:{quote:scalar(diagnostic.warmthInsult.quote),quoteFound:scalar(diagnostic.warmthInsult.quoteFound),applied:scalar(diagnostic.warmthInsult.applied)}} : {}),
     ...(Array.isArray(diagnostic.clarityChecks) ? {clarityChecks:diagnostic.clarityChecks.map(check=>({

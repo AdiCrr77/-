@@ -11,6 +11,15 @@ const output={u:false,p:'20%',g:'Resolve 30 tickets',d:'Resolved 40 tickets',e:'
 const measurement={confidence:100,heard:'Heard: 0 fillers, 0 long pauses, 0 hedges'};
 const raw='payRequest=20% raise; agreedGoals=30 tickets; deliveredOutcome=40 tickets; expectations=exceeded';
 const options={transcribe:async()=>measurement,reserveFeedback:async()=>true,report:()=>{}};
+test('repeated ask amounts reject across wording, percent notation, ranges and a single clause',()=>{
+ for(const rewrite of ["I'd like a 20% raise. I'm asking for 20 percent.","I'd like a 20.5% raise. I want 20.5 percent.","I'm asking for 20 to 25 percent. I'd like a 20-25% raise.","I'd like a 20% hike, 20 percent please."]) {
+  assert.throws(()=>parseScore(JSON.stringify({...score,rewrite})),error=>error.diagnosticCode==='invalid_rewrite_repeated_ask_amount');
+ }
+ assert.doesNotThrow(()=>parseScore(JSON.stringify({...score,rewrite:"Comparable roles received a 20% raise. I delivered a guide. I'd like a 20% raise."})));
+});
+test('delivery-first ordering still rejects a question or hedge in the ask sentence',()=>{
+ for(const ask of ["Could we revisit the 20% raise?","I'd like a 20% raise, maybe."]) assert.throws(()=>parseScore(JSON.stringify({...score,rewrite:'I delivered a guide. '+ask})),/invalid_rewrite/);
+});
 test('Better version never contains equals signs or internal field names',()=>{
  for(const rewrite of [raw,'I request x=y.','payRequest: 20%', 'agreedGoals','deliveredOutcome','expectations']) {
  assert.throws(()=>parseScore(JSON.stringify({...score,rewrite})),/invalid_rewrite/);

@@ -73,7 +73,10 @@ export const score = internalAction({
           evaluate: (round) => scoreText(process.env.OPENAI_API_KEY, { facts: claim.facts, currentQuestion: claim.currentQuestion, round }),
           reserveRetry: () => ctx.runMutation(internal.practice.reserveRetry, identity),
           onFeedbackScoresRejected: scores => {feedbackScoreRejections.push(scores);},
-          onRewriteRejected: reason => { rewriteRejections.push(reason); },
+          onRewriteRejected: reason => {
+            rewriteRejections.push(reason);
+            console.warn(`practice_rewrite_rejected rule=${reason}`);
+          },
           facts: claim.facts,
           reportRejected: (text) => reportRejectedResponse(text, [process.env.OPENAI_API_KEY, process.env.PRACTICE_BRIDGE_TOKEN]),
         });

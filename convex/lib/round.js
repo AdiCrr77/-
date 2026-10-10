@@ -24,6 +24,6 @@ const GAP_SENTENCES = {
 };
 export function ensureRewriteGaps(rewrite, missing) {
   validateRewrite(rewrite);
-  for(const name of missing) if(!rewrite.includes(GAP_TEXT[name])) rewrite+=` ${GAP_SENTENCES[name]}`;
+  for(const name of missing) if(!rewrite.includes(GAP_TEXT[name]) && !(name==='deliveredOutcome' && rewrite.includes('[Name the work you delivered.]'))) rewrite+=` ${GAP_SENTENCES[name]}`;
   return rewrite;
 }

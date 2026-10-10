@@ -1,6 +1,6 @@
 import { measureRound } from "./round.js";
 import { parsePracticeResult } from "./facts.js";
-import { reportDiagnostic } from "./diagnostics.js";
+import { reportDiagnostic, rewriteRejectionRule } from "./diagnostics.js";
 
 const RETRYABLE = new Set([
   "invalid_json", "invalid_facts", "invalid_scores", "invalid_rewrite",
@@ -13,14 +13,15 @@ export async function evaluatePractice({ evaluate, reserveRetry, facts, report =
     let text;
     try { text = await evaluate(); }
     catch (error) {
-      if (RETRYABLE.has(error.message) && typeof error.rejectedResponseText === "string") reportRejected(error.rejectedResponseText);
+      if (error.message === "invalid_rewrite") onRewriteRejected(rewriteRejectionRule(error));
+      else if (RETRYABLE.has(error.message) && typeof error.rejectedResponseText === "string") reportRejected(error.rejectedResponseText);
       throw error;
     }
     try { return parsePracticeResult(text, facts, requireObservations, measurement, round, clarityTranscripts); }
     catch (error) {
       if (error.message === 'invalid_scores' && error.feedbackScores) onFeedbackScoresRejected(error.feedbackScores);
-      if (error.message === "invalid_rewrite") onRewriteRejected(error.diagnosticCode ?? "invalid_rewrite");
-      if (RETRYABLE.has(error.message)) reportRejected(text);
+      if (error.message === "invalid_rewrite") onRewriteRejected(rewriteRejectionRule(error));
+      else if (RETRYABLE.has(error.message)) reportRejected(text);
       throw error;
     }
   };

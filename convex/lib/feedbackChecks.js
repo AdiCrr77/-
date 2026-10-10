@@ -27,13 +27,27 @@ export function scoreFeedbackChecks(feedback,transcripts,situation='raise') {
     });
   };
   const persuasionChecks=evaluate(feedback?.k,'persuasion');
-  let warmthChecks=evaluate(feedback?.w,'warmth');
+  const warmthKeys=['W1','W2','W3','W4'];
+  if(!feedback?.w||typeof feedback.w!=='object'||Array.isArray(feedback.w)||Object.keys(feedback.w).length!==4||warmthKeys.some(key=>!Object.hasOwn(feedback.w,key)))reject();
+  let warmthChecks=warmthKeys.map((key,index)=>{
+    const check=feedback.w[key];
+    if(!check||typeof check!=='object'||Array.isArray(check)||Object.keys(check).some(field=>!['level','quote'].includes(field))||!['clear','partial','missing'].includes(check.level))reject();
+    const aiLevel=check.level;
+    const sourceQuote=typeof check.quote==='string'?check.quote:'';
+    const omission=aiLevel==='missing'&&sourceQuote==='MISSING';
+    if(sourceQuote!=='MISSING'&&sourceQuote.trim().split(/\s+/u).length>15)reject();
+    const quote=omission?fullAnswer:sourceQuote;
+    const quoteFound=quoteMatches(quote,omission?[fullAnswer]:transcripts);
+    const level=aiLevel!=='missing'&&sourceQuote!=='MISSING'&&quoteFound?aiLevel:'missing';
+    return {check:index+1,name:rubric.warmth[index].name,aiPass:aiLevel==='clear',aiLevel,quote,quoteFound,pass:level==='clear',level,points:level==='clear'?25:level==='partial'?12.5:0,
+      ...(level==='missing'?{reason:omission?'missing_evidence':'unsupported_evidence'}:{})};
+  });
   if(typeof feedback?.i!=='string')reject();
   const insultQuote=feedback.i;
   const insultFound=!!insultQuote.trim()&&quoteMatches(insultQuote,transcripts);
   if(insultQuote.trim()&&!insultFound)reject();
-  if(insultFound)warmthChecks=warmthChecks.map(check=>({...check,quote:insultQuote,quoteFound:true,pass:false,reason:'insult_cap'}));
+  if(insultFound)warmthChecks=warmthChecks.map(check=>({...check,quote:insultQuote,quoteFound:true,pass:false,level:'missing',points:0,reason:'insult_cap'}));
   const score=checks=>100-25*checks.filter(check=>!check.pass).length;
-  return {persuasion:score(persuasionChecks),warmth:score(warmthChecks),persuasionChecks,warmthChecks,
+  return {persuasion:score(persuasionChecks),warmth:Math.round(warmthChecks.reduce((sum,check)=>sum+check.points,0)),persuasionChecks,warmthChecks,
     warmthInsult:{quote:insultQuote,quoteFound:insultFound,applied:insultFound}};
 }

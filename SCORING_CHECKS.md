@@ -10,8 +10,8 @@ Scoring specification. Clarity, Confidence, better-version rules, scorecard layo
 ## Shared scoring and evidence rules
 
 - Evaluate the complete answer round's accepted transcripts in chronological order. Use only words in those transcripts, not delivery, pitch, pauses, fillers, body language or guessed intentions.
-- Each scenario has four Persuasion checks and four Warmth checks. Judge each check independently. Each category's score is `100 - 25 × failed checks`: 100, 75, 50, 25 or 0.
-- Every check has a pass/fail judgment and transcript evidence. For a pass, quote wording that satisfies the stated criterion. For an explicit failure, quote the wording that violates it.
+- Each scenario has four Persuasion checks and four Warmth checks. Judge each check independently. Persuasion stays `100 - 25 × failed checks`. Warmth awards clear = 25, partial = 12.5, missing = 0 per check, then sums and rounds to the nearest whole number.
+- Every Persuasion check has a pass/fail judgment and transcript evidence. Every Warmth check has a clear/partial/missing level and transcript evidence; clear and partial require a matching quote or become missing. For a pass, quote wording that satisfies the stated criterion. For an explicit failure, quote the wording that violates it.
 - If a required detail is absent, fail that check and mark the reason as missing evidence. Use the complete evaluated answer as the evidence quote; a short unrelated quote cannot prove an omission. That quote can be taken from the already available transcript, rather than asking the model to repeat it within the existing reply cap.
 - Reuse Clarity's quote matching: ignore punctuation, capitals and extra spaces, but preserve words, their order and numbers. Keep the original quoted wording in diagnostics. No invented quotations or quote-length penalty.
 - Quote matching verifies the source of evidence, not its meaning. The judgment must also satisfy the check's criterion; finding the word "respect" or "because" alone does not establish a pass.
@@ -21,6 +21,19 @@ Scoring specification. Clarity, Confidence, better-version rules, scorecard layo
 - Firm requests, factual disagreement, missed targets and personal boundaries are not automatically disrespectful. Do not reward compliance with the other person's wishes.
 - Examples below are made up. Each line demonstrates only its own check, not a complete answer or a guaranteed category score. "Fail" means the pass criterion is not met, including when required wording is absent.
 
+## Warmth levels
+
+For W1-W4, clear means the positive criterion below is fully expressed and verified by an exact transcript quote. Partial means the following weaker behavior is expressed and verified by a quote. Missing means neither behavior is present, or the clear/partial quote is absent or does not match the transcript. Every clear/partial quote is at most 15 words. Missing evidence uses `level: "missing", quote: "MISSING"`; diagnostics substitute the full answer. Quote matching ignores punctuation, capitals and extra spaces.
+
+| Check | Partial behavior | Example |
+| --- | --- | --- |
+| W1 | Polite acknowledgment without thanks or appreciation. | "I understand." / "I know it's a busy time." |
+| W2 | Mentions the team's or company's result without framing it as "we" or "our". | "The team reached its subscriber target." |
+| W3 | Soft framing without explicitly acknowledging the manager's decision or constraints. | "If possible." / "I'd like to discuss." |
+| W4 | An open ending without a direct question inviting their view. | "Let me know." |
+
+Warmth = `Math.round(sum of the four points)`, with clear = 25, partial = 12.5, missing = 0. Any insult overrides all four levels to missing with zero points. Existing Warmth pass examples below denote clear, and failure examples denote missing unless they meet the partial criteria above.
+
 ## Warmth insult cap
 
 This is a separate rule, not one of the four positive checks. In every scenario, any insult spoken by the user about the listener or another person or group makes all four Warmth checks fail: Warmth = 0. Quote the exact insult as evidence for the override. Positive wording elsewhere cannot cancel it.
@@ -29,7 +42,7 @@ An insult is an explicit degrading personal label or attack, such as "You're an 
 
 ## 1. Asking for a raise
 
-AI must answer all eight questions every time using fixed required keys P1-P4 and W1-W4. Every answer has `pass` (yes/no as a boolean) and `quote`. For missing evidence, a no uses `quote: "MISSING"`; diagnostics substitute the full answer. Other quotes contain at most 15 words and must match the transcript ignoring punctuation, capitals and extra spaces. Each no costs 25 points. Any insult sets Warmth to 0.
+AI must answer all eight questions every time using fixed required keys P1-P4 and W1-W4. Each Persuasion answer has `pass` (boolean) and `quote`; each Warmth answer has `level` (`clear`, `partial`, `missing`) and `quote`. For missing evidence, a no uses `quote: "MISSING"`; diagnostics substitute the full answer. Other quotes contain at most 15 words and must match the transcript ignoring punctuation, capitals and extra spaces. Each Persuasion no costs 25 points. Warmth sums clear = 25, partial = 12.5, missing = 0 and rounds to a whole number. Any insult sets Warmth to 0.
 
 ### Persuasion
 

@@ -1,3 +1,4 @@
+import {acceptsPracticeEvent, maskPhoneNumbers} from './practice-access.mjs';
 import { spawn } from "node:child_process";
 import { realpath, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -118,6 +119,9 @@ export function createWorker({
   token,
   bridge,
   cacheDir,
+  allowedNumbers = null,
+  selfNumber,
+  selfLid,
   ffmpeg = "ffmpeg",
   fetchImpl = fetch,
   convert = convertAudio,
@@ -140,6 +144,7 @@ export function createWorker({
       });
   };
   return async (event) => {
+    const accepted=acceptsPracticeEvent(event,{allowedNumbers,selfNumber,selfLid});
     let mediaPath;
     let bytes;
     try {
@@ -150,7 +155,7 @@ export function createWorker({
           throw new Error("unsafe_media_path");
         mediaPath = candidate;
       }
-      if (event.isGroup) return;
+      if (!accepted) return;
       // Read the explicit phone JID. LID-only identity is never silently treated as a phone number.
       const match = /^([1-9]\d{6,14})(?::\d+)?@s\.whatsapp\.net$/.exec(
         event.senderId ?? "",
@@ -182,7 +187,7 @@ export function createWorker({
           bytes = Buffer.alloc(0);
         }
       } else {
-        try { logDiagnostic(missingAudioDiagnostic(event)); } catch {
+        try { logDiagnostic(maskPhoneNumbers(missingAudioDiagnostic(event))); } catch {
           console.error('practice_scoring_error code=audio_download_missing');
         }
         await send(event.chatId, ["I couldn't get that voice note, please send it again."]);
@@ -208,7 +213,7 @@ export function createWorker({
             : { messages: [BUSY] };
       if(typeof result.scoringDiagnostic==='string') {
         // Local diagnostic output is independent of WhatsApp message delivery.
-        try {logDiagnostic(result.scoringDiagnostic);} catch {console.error('Scoring diagnostic could not be printed.');}
+        try {logDiagnostic(maskPhoneNumbers(result.scoringDiagnostic));} catch {console.error('Scoring diagnostic could not be printed.');}
       }
       await send(event.chatId, result.messages);
     } catch {
@@ -216,7 +221,7 @@ export function createWorker({
       console.error(
         "Practice delivery failed. Check bridge and Convex connectivity.",
       );
-      if (event.chatId && !event.isGroup)
+      if (accepted && event.chatId && !event.isGroup)
         await send(event.chatId, [BUSY]).catch(() => {});
     } finally {
       bytes?.fill(0);

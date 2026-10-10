@@ -10,6 +10,17 @@ const valid = {
   rewrite: "A synthetic raise request using the supplied facts.",
 };
 
+test('rewrite rejection rules reach local diagnostics on both thrown and parsed attempts without rejected text',async()=>{
+ const rules=[];const texts=[];let calls=0;
+ await assert.rejects(evaluatePractice({
+  evaluate:async()=>{if(++calls===1)throw Object.assign(new Error('invalid_rewrite'),{diagnosticCode:'invalid_rewrite_missing_delivery'});return JSON.stringify({...valid,rewrite:'*Private synthetic answer*'});},
+  reserveRetry:async()=>true,facts:emptyFacts(),report:()=>{},
+  onRewriteRejected:rule=>rules.push(rule),reportRejected:text=>texts.push(text),
+ }),/invalid_rewrite/);
+ assert.deepEqual(rules,['invalid_rewrite_missing_delivery','invalid_rewrite_format']);
+ assert.deepEqual(texts,[]);
+});
+
 test("malformed facts, scores or rewrite retry once before returning a validated result", async () => {
   for (const bad of [{ ...valid, facts: [] }, { ...valid, confidence: null }, { ...valid, rewrite: null }, { ...valid, rewrite: "*Synthetic answer*" }]) {
     let calls = 0;

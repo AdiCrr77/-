@@ -40,6 +40,14 @@ const SAFE_CODES = new Set([
   "invalid_rewrite_fields",
   "invalid_rewrite_word_limit",
   "invalid_rewrite_corporate_phrase",
+  "invalid_rewrite_missing_delivery",
+  "invalid_rewrite_repeated_ask_amount",
+  "invalid_rewrite_entitlement",
+  "invalid_rewrite_unnamed_reference",
+  "invalid_rewrite_opening_question",
+  "invalid_rewrite_opening_phrase",
+  "invalid_rewrite_repetition",
+  "invalid_rewrite_shortfall_link",
   "unreadable",
   "timeout",
   "connection_failed",
@@ -73,6 +81,12 @@ const SAFE_CODES = new Set([
     (status) => `connection_http_${status}`,
   ),
 ]);
+
+export function rewriteRejectionRule(error) {
+  const rule=error?.diagnosticCode;
+  return typeof rule==='string' && rule.startsWith('invalid_rewrite_') && SAFE_CODES.has(rule)
+    ? rule : 'invalid_rewrite';
+}
 
 export function audioFailureCode(bytes) {
   if (bytes.byteLength === 0) return "invalid_audio_empty";
